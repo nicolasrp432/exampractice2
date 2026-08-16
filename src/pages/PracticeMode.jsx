@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   ArrowLeft, Play, Trash2, Sparkles, ChevronDown, ChevronUp, Eye, Timer,
   CheckCircle2, XCircle, Circle, Trophy, RotateCcw, Save, X, ClipboardList, BookOpen,
-  Microscope, Terminal, Plus, AlertTriangle, Loader2, Box
+  Microscope, Terminal, Plus, AlertTriangle, Loader2, Box, Zap, Code2
 } from 'lucide-react'
 import clsx from 'clsx'
 import { getExercise } from '@/data/index'
@@ -642,6 +642,28 @@ function useTimer() {
   return { seconds, fmt, start, running }
 }
 
+const C_QUICK_KEYS = [
+  { label: '{ }', code: '{\n\t\n}' },
+  { label: ';', code: ';' },
+  { label: '*', code: '*' },
+  { label: '&', code: '&' },
+  { label: '->', code: '->' },
+  { label: '( )', code: '()' },
+  { label: '[ ]', code: '[]' },
+  { label: '" "', code: '""' },
+  { label: "' '", code: "''" },
+  { label: '=', code: ' = ' },
+  { label: '==', code: ' == ' },
+  { label: '!=', code: ' != ' },
+  { label: '<', code: ' < ' },
+  { label: '>', code: ' > ' },
+  { label: '\\0', code: "'\\0'" },
+  { label: '\\n', code: "'\\n'" },
+  { label: 'Tab', code: '\t' },
+  { label: '++', code: '++' },
+  { label: '//', code: '// ' },
+]
+
 // ─── PracticeMode ─────────────────────────────────────────────────────────────
 export default function PracticeMode() {
   const { id } = useParams()
@@ -653,6 +675,22 @@ export default function PracticeMode() {
   const toggleStrictMoulinette = useSettingsStore(s => s.toggleStrictMoulinette)
   const timer = useTimer()
   const { saveVariant } = useUserVariants(id)
+
+  const handleInsertSymbol = useCallback((textToInsert) => {
+    if (editorRef.current) {
+      const editor = editorRef.current
+      const selection = editor.getSelection()
+      const op = {
+        range: selection,
+        text: textToInsert,
+        forceMoveMarkers: true,
+      }
+      editor.executeEdits('quick-symbols', [op])
+      editor.focus()
+    } else {
+      setCode(prev => prev + textToInsert)
+    }
+  }, [])
 
   const STORAGE_KEY = `42prep-code-${id}`
   const ARGS_KEY = `42prep-args-${id}`
@@ -1259,7 +1297,7 @@ export default function PracticeMode() {
   }
 
   return (
-    <div className={clsx("flex flex-col h-screen bg-zinc-50 overflow-hidden", isMobile && "pb-14")}>
+    <div className="flex flex-col h-screen bg-zinc-50 overflow-hidden">
       <CelebrationOverlay show={celebrate} onClose={() => setCelebrate(false)} />
       <GdbTraceModal
         open={showGdbTrace}
@@ -1279,38 +1317,39 @@ export default function PracticeMode() {
       )}
 
       {/* ── Top header ── */}
-      <header className="flex items-center justify-between px-6 py-3 bg-white border-b border-zinc-200 shrink-0">
-        <div className="flex items-center gap-4">
+      <header className="flex items-center justify-between px-3 sm:px-6 py-2.5 sm:py-3 bg-white border-b border-zinc-200 shrink-0">
+        <div className="flex items-center gap-2 sm:gap-4 min-w-0">
           <button
             onClick={() => navigate(`/ejercicio/${id}`)}
-            className="flex items-center gap-1.5 text-sm text-zinc-500 hover:text-zinc-800 transition-colors"
+            className="flex items-center gap-1 text-xs sm:text-sm text-zinc-500 hover:text-zinc-800 transition-colors shrink-0"
+            aria-label="Volver al estudio"
           >
             <ArrowLeft size={16} />
-            Volver al estudio
+            <span className="hidden sm:inline">Volver</span>
           </button>
-          <div className="w-px h-5 bg-zinc-200" />
-          <div className="flex items-center gap-2">
-            <span className="text-base">{exercise.palacio?.emoji}</span>
-            <span className="font-semibold text-zinc-800 font-mono">{exercise.nombre}</span>
+          <div className="w-px h-4 sm:h-5 bg-zinc-200 shrink-0" />
+          <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+            <span className="text-sm sm:text-base shrink-0">{exercise.palacio?.emoji}</span>
+            <span className="font-semibold text-xs sm:text-sm text-zinc-800 font-mono truncate max-w-[130px] sm:max-w-none">{exercise.nombre}</span>
             <LevelBadge nivel={exercise.nivel} tamaño="sm" />
-            <span className={clsx('text-xs font-semibold px-2 py-0.5 rounded-full', estadoBadge.cls)}>
+            <span className={clsx('text-[10px] sm:text-xs font-semibold px-1.5 sm:px-2 py-0.5 rounded-full shrink-0 hidden xs:inline-block', estadoBadge.cls)}>
               {estadoBadge.label}
             </span>
           </div>
         </div>
 
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-4 text-xs text-zinc-500 hidden sm:flex">
+        <div className="flex items-center gap-2 sm:gap-4 shrink-0">
+          <div className="flex items-center gap-4 text-xs text-zinc-500 hidden md:flex">
             <span>Intentos: <strong className="text-zinc-700">{intentos}</strong></span>
             <span>Tests: <strong className="text-green-600">{passedCount}</strong>/<strong className="text-zinc-700">{tests.length}</strong></span>
           </div>
-          <div className="flex items-center gap-1.5 text-sm font-mono text-zinc-600 bg-zinc-100 px-3 py-1 rounded-full">
-            <Timer size={14} />
+          <div className="flex items-center gap-1 text-xs sm:text-sm font-mono text-zinc-600 bg-zinc-100 px-2.5 sm:px-3 py-1 rounded-full">
+            <Timer size={13} />
             {timer.fmt}
           </div>
           <button
             onClick={handleClear}
-            className="flex items-center gap-1 text-xs text-zinc-500 hover:text-zinc-700"
+            className="flex items-center gap-1 text-xs text-zinc-500 hover:text-zinc-700 p-1 sm:p-0"
             title="Limpiar y reiniciar"
           >
             <RotateCcw size={14} />
@@ -1334,14 +1373,15 @@ export default function PracticeMode() {
               onMount={editor => { editorRef.current = editor }}
               options={{
                 fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
-                fontSize: 13,
-                lineHeight: 20,
+                fontSize: isMobile ? 12 : 13,
+                lineHeight: isMobile ? 19 : 20,
                 minimap: { enabled: false },
                 scrollBeyondLastLine: false,
                 tabSize: 4,
                 insertSpaces: false,
-                wordWrap: 'off',
-                padding: { top: 16, bottom: 16 },
+                wordWrap: isMobile ? 'on' : 'off',
+                lineNumbersMinChars: isMobile ? 2 : 3,
+                padding: { top: 12, bottom: isMobile ? 20 : 16 },
                 renderLineHighlight: 'line',
                 suggestOnTriggerCharacters: true,
                 quickSuggestions: true,
@@ -1374,76 +1414,78 @@ export default function PracticeMode() {
             )}
           </AnimatePresence>
 
-          {/* Bottom action bar */}
-          <div className="shrink-0 flex flex-wrap items-center gap-3 px-4 py-3 bg-white border-t border-zinc-200">
-            <motion.button
-              whileTap={{ scale: 0.95 }}
-              onClick={() => handleCompile()}
-              disabled={isRunning}
-              className={clsx(
-                'flex items-center gap-2 px-5 py-2 rounded-lg font-semibold text-sm transition-all shadow-sm',
-                isRunning
-                  ? 'bg-zinc-100 text-zinc-400 cursor-not-allowed'
+          {/* Desktop Bottom action bar */}
+          {!isMobile && (
+            <div className="shrink-0 flex flex-wrap items-center gap-3 px-4 py-3 bg-white border-t border-zinc-200">
+              <motion.button
+                whileTap={{ scale: 0.95 }}
+                onClick={() => handleCompile()}
+                disabled={isRunning}
+                className={clsx(
+                  'flex items-center gap-2 px-5 py-2 rounded-lg font-semibold text-sm transition-all shadow-sm',
+                  isRunning
+                    ? 'bg-zinc-100 text-zinc-400 cursor-not-allowed'
+                    : preferredCompileMode === 'mock'
+                    ? 'bg-purple-600 text-white hover:bg-purple-700 shadow-purple-100'
+                    : 'bg-zinc-900 text-white hover:bg-zinc-700'
+                )}
+              >
+                <Play size={15} className={isRunning ? 'animate-pulse' : ''} />
+                {isRunning
+                  ? 'Validando…'
                   : preferredCompileMode === 'mock'
-                  ? 'bg-purple-600 text-white hover:bg-purple-700 shadow-purple-100'
-                  : 'bg-zinc-900 text-white hover:bg-zinc-700'
-              )}
-            >
-              <Play size={15} className={isRunning ? 'animate-pulse' : ''} />
-              {isRunning
-                ? 'Validando…'
-                : preferredCompileMode === 'mock'
-                ? 'Verificar (Simulador) ⚡'
-                : 'Compilar ▶'}
-            </motion.button>
+                  ? 'Verificar (Simulador) ⚡'
+                  : 'Compilar ▶'}
+              </motion.button>
 
-            <select
-              value={preferredCompileMode}
-              onChange={(e) => setPreferredCompileMode(e.target.value)}
-              className="px-2 py-2 bg-zinc-50 border border-zinc-200 rounded-lg text-xs font-semibold text-zinc-700 focus:outline-none focus:ring-1 focus:ring-zinc-400 cursor-pointer"
-              title="Elige si deseas validar usando el compilador Wandbox o la simulación offline"
-            >
-              <option value="auto">Verificación Automática (Compilador)</option>
-              <option value="mock">Simulador Offline (Instantáneo)</option>
-            </select>
+              <select
+                value={preferredCompileMode}
+                onChange={(e) => setPreferredCompileMode(e.target.value)}
+                className="px-2 py-2 bg-zinc-50 border border-zinc-200 rounded-lg text-xs font-semibold text-zinc-700 focus:outline-none focus:ring-1 focus:ring-zinc-400 cursor-pointer"
+                title="Elige si deseas validar usando el compilador Wandbox o la simulación offline"
+              >
+                <option value="auto">Verificación Automática (Compilador)</option>
+                <option value="mock">Simulador Offline (Instantáneo)</option>
+              </select>
 
-            <button
-              onClick={handleClear}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm text-zinc-600 bg-zinc-100 hover:bg-zinc-200 transition-colors"
-            >
-              <Trash2 size={14} />
-              <span className="hidden sm:inline">Limpiar 🧹</span>
-            </button>
+              <button
+                onClick={handleClear}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm text-zinc-600 bg-zinc-100 hover:bg-zinc-200 transition-colors"
+              >
+                <Trash2 size={14} />
+                <span className="hidden sm:inline">Limpiar 🧹</span>
+              </button>
 
-            <button
-              onClick={() => setShowSaveModal(true)}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-200 transition-colors"
-              title="Guardar el código actual como variante"
-            >
-              <Save size={14} />
-              <span className="hidden md:inline">Guardar variante</span>
-            </button>
+              <button
+                onClick={() => setShowSaveModal(true)}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-200 transition-colors"
+                title="Guardar el código actual como variante"
+              >
+                <Save size={14} />
+                <span className="hidden md:inline">Guardar variante</span>
+              </button>
 
-            <button
-              onClick={handleTrace}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm text-purple-700 bg-purple-50 hover:bg-purple-100 border border-purple-200 transition-colors"
-              title="Compilar instrumentado y ver paso a paso con los args actuales"
-            >
-              <Microscope size={14} />
-              <span className="hidden lg:inline">Ver ejecución paso a paso</span>
-            </button>
+              <button
+                onClick={handleTrace}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm text-purple-700 bg-purple-50 hover:bg-purple-100 border border-purple-200 transition-colors"
+                title="Compilar instrumentado y ver paso a paso con los args actuales"
+              >
+                <Microscope size={14} />
+                <span className="hidden lg:inline">Ver ejecución paso a paso</span>
+              </button>
 
-            <label className="ml-auto flex items-center gap-1.5 text-xs text-zinc-500 cursor-pointer select-none" title="Compilar con -Wall -Wextra -Werror, como la Moulinette del 42">
-              <input
-                type="checkbox"
-                checked={strictMoulinette}
-                onChange={toggleStrictMoulinette}
-                className="accent-zinc-900"
-              />
-              <span className="hidden md:inline">Moulinette estricta</span>
-            </label>
-            <span className="text-xs text-zinc-400 font-mono hidden sm:inline">Ctrl+Enter</span>
-          </div>
+              <label className="ml-auto flex items-center gap-1.5 text-xs text-zinc-500 cursor-pointer select-none" title="Compilar con -Wall -Wextra -Werror, como la Moulinette del 42">
+                <input
+                  type="checkbox"
+                  checked={strictMoulinette}
+                  onChange={toggleStrictMoulinette}
+                  className="accent-zinc-900"
+                />
+                <span className="hidden md:inline">Moulinette estricta</span>
+              </label>
+              <span className="text-xs text-zinc-400 font-mono hidden sm:inline">Ctrl+Enter</span>
+            </div>
+          )}
         </div>
 
         {/* ── DRAGGABLE DIVIDER (Resizer) ── */}
@@ -1465,7 +1507,7 @@ export default function PracticeMode() {
           </div>
         )}
 
-        {/* ── RIGHT: Tabbed Sidebar Panel ── */}
+        {/* ── RIGHT: Tabbed Sidebar Panel (Desktop) ── */}
         {!isMobile && !isSidebarCollapsed && (
           <div
             style={{ width: `${sidebarWidth}px` }}
@@ -1571,7 +1613,7 @@ export default function PracticeMode() {
           </div>
         )}
 
-        {/* Floating expand button if sidebar is hidden */}
+        {/* Floating expand button if sidebar is hidden (Desktop) */}
         {!isMobile && isSidebarCollapsed && (
           <button
             onClick={() => setIsSidebarCollapsed(false)}
@@ -1583,7 +1625,150 @@ export default function PracticeMode() {
         )}
       </div>
 
-      {/* ── MOBILE BOTTOM SHEET ── */}
+      {/* ── MOBILE UNIFIED CONTROL CENTER (Only 1 clean mobile bar) ── */}
+      {isMobile && (
+        <div className="shrink-0 bg-white border-t border-zinc-200 shadow-xl z-30 pb-safe">
+          {/* 1. Quick C Symbols Bar */}
+          <div className="flex items-center gap-1.5 px-2 py-1.5 bg-zinc-50 border-b border-zinc-200/80 overflow-x-auto select-none">
+            <span className="text-[10px] font-bold font-mono text-zinc-400 shrink-0 px-1">C:</span>
+            {C_QUICK_KEYS.map((item, idx) => (
+              <button
+                key={idx}
+                type="button"
+                onClick={() => handleInsertSymbol(item.code)}
+                className="shrink-0 px-2.5 py-1 bg-white hover:bg-zinc-100 active:bg-zinc-200 border border-zinc-200 rounded-lg text-xs font-mono font-bold text-zinc-700 active:scale-95 transition-all shadow-2xs"
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+
+          {/* 2. Primary Mobile Action Controls */}
+          <div className="flex items-center justify-between gap-2 px-3 py-2 bg-white border-b border-zinc-100">
+            {/* Compile button */}
+            <motion.button
+              whileTap={{ scale: 0.96 }}
+              onClick={() => handleCompile()}
+              disabled={isRunning}
+              className={clsx(
+                'flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl font-bold text-xs shadow-sm transition-all',
+                isRunning
+                  ? 'bg-zinc-100 text-zinc-400 cursor-not-allowed'
+                  : preferredCompileMode === 'mock'
+                  ? 'bg-purple-600 text-white active:bg-purple-700'
+                  : 'bg-zinc-900 text-white active:bg-zinc-800'
+              )}
+            >
+              <Play size={13} className={isRunning ? 'animate-spin' : 'fill-current'} />
+              <span>{isRunning ? 'Validando…' : preferredCompileMode === 'mock' ? 'Simular ⚡' : 'Compilar ▶'}</span>
+              <span className={clsx(
+                'text-[10px] font-mono px-1.5 py-0.2 rounded-full ml-1',
+                allPassed ? 'bg-green-400 text-green-950 font-bold' : 'bg-white/20 text-white'
+              )}>
+                {passedCount}/{tests.length}
+              </span>
+            </motion.button>
+
+            {/* Offline vs Compiler Mode Toggle */}
+            <button
+              onClick={() => setPreferredCompileMode(m => m === 'mock' ? 'auto' : 'mock')}
+              className={clsx(
+                'flex items-center gap-1 px-2.5 py-2 rounded-xl text-xs font-semibold border transition-all shrink-0',
+                preferredCompileMode === 'mock'
+                  ? 'bg-purple-50 text-purple-700 border-purple-200'
+                  : 'bg-zinc-50 text-zinc-600 border-zinc-200'
+              )}
+              title="Alternar entre compilador Wandbox y simulador offline instantáneo"
+            >
+              <Zap size={13} className={preferredCompileMode === 'mock' ? 'text-purple-600 fill-purple-600' : 'text-zinc-400'} />
+              <span>{preferredCompileMode === 'mock' ? 'Offline' : 'Wandbox'}</span>
+            </button>
+
+            {/* Step Trace Button */}
+            <button
+              onClick={handleTrace}
+              className="p-2 rounded-xl text-purple-700 bg-purple-50 hover:bg-purple-100 border border-purple-200 transition-colors shrink-0"
+              title="Ver ejecución paso a paso"
+            >
+              <Microscope size={15} />
+            </button>
+          </div>
+
+          {/* 3. Contextual Tabs Selector (Opens Drawer) */}
+          <div className="flex items-center justify-around py-1.5 px-1 bg-white">
+            <button
+              onClick={() => setActiveMobileTab(t => t === 'enunciado' ? null : 'enunciado')}
+              className={clsx(
+                "flex flex-col items-center gap-0.5 py-1 px-2 text-[10px] font-semibold transition-all rounded-xl min-w-[50px]",
+                activeMobileTab === 'enunciado' ? "text-zinc-900 bg-zinc-100 font-bold" : "text-zinc-500"
+              )}
+            >
+              <ClipboardList size={15} />
+              <span>Enunciado</span>
+            </button>
+
+            <button
+              onClick={() => setActiveMobileTab(t => t === 'dojo3d' ? null : 'dojo3d')}
+              className={clsx(
+                "flex flex-col items-center gap-0.5 py-1 px-2 text-[10px] font-semibold transition-all rounded-xl min-w-[50px]",
+                activeMobileTab === 'dojo3d' ? "text-indigo-700 bg-indigo-50 font-bold" : "text-zinc-500"
+              )}
+            >
+              <Box size={15} className={activeMobileTab === 'dojo3d' ? 'text-indigo-600' : 'text-zinc-500'} />
+              <span>Dojo 3D</span>
+            </button>
+
+            <button
+              onClick={() => setActiveMobileTab(t => t === 'moulinette' ? null : 'moulinette')}
+              className={clsx(
+                "flex flex-col items-center gap-0.5 py-1 px-2 text-[10px] font-semibold transition-all rounded-xl min-w-[50px] relative",
+                activeMobileTab === 'moulinette' ? "text-zinc-900 bg-zinc-100 font-bold" : "text-zinc-500"
+              )}
+            >
+              <Trophy size={15} />
+              <span>Tests</span>
+              {passedCount > 0 && (
+                <span className="absolute top-0 right-1 w-2 h-2 rounded-full bg-green-500" />
+              )}
+            </button>
+
+            <button
+              onClick={() => setActiveMobileTab(t => t === 'run' ? null : 'run')}
+              className={clsx(
+                "flex flex-col items-center gap-0.5 py-1 px-2 text-[10px] font-semibold transition-all rounded-xl min-w-[50px]",
+                activeMobileTab === 'run' ? "text-zinc-900 bg-zinc-100 font-bold" : "text-zinc-500"
+              )}
+            >
+              <Terminal size={15} />
+              <span>Params</span>
+            </button>
+
+            <button
+              onClick={() => setActiveMobileTab(t => t === 'mnemotecnia' ? null : 'mnemotecnia')}
+              className={clsx(
+                "flex flex-col items-center gap-0.5 py-1 px-2 text-[10px] font-semibold transition-all rounded-xl min-w-[50px]",
+                activeMobileTab === 'mnemotecnia' ? "text-zinc-900 bg-zinc-100 font-bold" : "text-zinc-500"
+              )}
+            >
+              <BookOpen size={15} />
+              <span>Campayo</span>
+            </button>
+
+            <button
+              onClick={() => setActiveMobileTab(t => t === 'tutor' ? null : 'tutor')}
+              className={clsx(
+                "flex flex-col items-center gap-0.5 py-1 px-2 text-[10px] font-semibold transition-all rounded-xl min-w-[50px]",
+                activeMobileTab === 'tutor' ? "text-purple-700 bg-purple-50 font-bold" : "text-zinc-500"
+              )}
+            >
+              <Sparkles size={15} className={activeMobileTab === 'tutor' ? 'text-purple-600' : 'text-zinc-500'} />
+              <span>Tutor AI</span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── MOBILE CONTEXT BOTTOM SHEET ── */}
       {isMobile && (
         <AnimatePresence>
           {activeMobileTab && (
@@ -1593,25 +1778,25 @@ export default function PracticeMode() {
                 initial={{ y: '100%' }}
                 animate={{ y: 0 }}
                 exit={{ y: '100%' }}
-                transition={{ type: 'spring', damping: 25, stiffness: 250 }}
-                className="relative z-10 w-full h-[70vh] bg-white rounded-t-3xl border-t border-zinc-200 flex flex-col shadow-2xl overflow-hidden"
+                transition={{ type: 'spring', damping: 26, stiffness: 260 }}
+                className="relative z-10 w-full h-[76vh] bg-white rounded-t-3xl border-t border-zinc-200 flex flex-col shadow-2xl overflow-hidden"
               >
                 {/* Handle bar */}
-                <div className="flex items-center justify-between px-5 py-3.5 border-b border-zinc-100 bg-zinc-50 shrink-0 select-none relative">
+                <div className="flex items-center justify-between px-5 py-3 border-b border-zinc-100 bg-zinc-50 shrink-0 select-none relative">
                   <div className="w-12 h-1 bg-zinc-300 rounded-full absolute left-1/2 -translate-x-1/2 top-2" />
-                  <div className="flex items-center gap-1.5 text-xs font-bold text-zinc-600 uppercase mt-1">
-                    {activeMobileTab === 'enunciado' && 'Enunciado'}
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-zinc-700 uppercase mt-1">
+                    {activeMobileTab === 'enunciado' && 'Enunciado del Ejercicio'}
                     {activeMobileTab === 'dojo3d' && 'Dojo & Laboratorio 3D'}
-                    {activeMobileTab === 'moulinette' && `Moulinette (${passedCount}/${tests.length})`}
-                    {activeMobileTab === 'run' && 'Parámetros'}
-                    {activeMobileTab === 'mnemotecnia' && 'Campayo'}
-                    {activeMobileTab === 'tutor' && 'Tutor AI'}
+                    {activeMobileTab === 'moulinette' && `Moulinette (${passedCount}/${tests.length} superados)`}
+                    {activeMobileTab === 'run' && 'Parámetros y Ejecución Custom'}
+                    {activeMobileTab === 'mnemotecnia' && 'Método Campayo'}
+                    {activeMobileTab === 'tutor' && 'Tutor AI Inteligente'}
                   </div>
                   <button
                     onClick={() => setActiveMobileTab(null)}
                     className="p-1 rounded-full bg-zinc-200 text-zinc-600 hover:bg-zinc-300 transition-colors"
                   >
-                    <X size={14} />
+                    <X size={15} />
                   </button>
                 </div>
                 
@@ -1623,72 +1808,6 @@ export default function PracticeMode() {
             </div>
           )}
         </AnimatePresence>
-      )}
-
-      {/* ── MOBILE TAB BAR FOOTER ── */}
-      {isMobile && (
-        <div className="fixed inset-x-0 bottom-0 bg-white border-t border-zinc-200 flex items-center justify-around py-1.5 z-40 shadow-lg px-1">
-          <button
-            onClick={() => setActiveMobileTab('enunciado')}
-            className={clsx(
-              "flex flex-col items-center gap-0.5 py-1 px-2 text-[10px] font-semibold transition-all rounded-lg",
-              activeMobileTab === 'enunciado' ? "text-purple-600 bg-purple-50 font-bold" : "text-zinc-500 hover:text-zinc-800"
-            )}
-          >
-            <ClipboardList size={16} />
-            <span>Enunciado</span>
-          </button>
-          <button
-            onClick={() => setActiveMobileTab('dojo3d')}
-            className={clsx(
-              "flex flex-col items-center gap-0.5 py-1 px-2 text-[10px] font-semibold transition-all rounded-lg",
-              activeMobileTab === 'dojo3d' ? "text-indigo-600 bg-indigo-50 font-bold" : "text-zinc-500 hover:text-indigo-600"
-            )}
-          >
-            <Box size={16} className={activeMobileTab === 'dojo3d' ? 'text-indigo-600' : 'text-zinc-500'} />
-            <span>Dojo 3D</span>
-          </button>
-          <button
-            onClick={() => setActiveMobileTab('moulinette')}
-            className={clsx(
-              "flex flex-col items-center gap-0.5 py-1 px-2 text-[10px] font-semibold transition-all rounded-lg",
-              activeMobileTab === 'moulinette' ? "text-purple-600 bg-purple-50 font-bold" : "text-zinc-500 hover:text-zinc-800"
-            )}
-          >
-            <Trophy size={16} />
-            <span>Tests</span>
-          </button>
-          <button
-            onClick={() => setActiveMobileTab('run')}
-            className={clsx(
-              "flex flex-col items-center gap-0.5 py-1 px-2 text-[10px] font-semibold transition-all rounded-lg",
-              activeMobileTab === 'run' ? "text-purple-600 bg-purple-50 font-bold" : "text-zinc-500 hover:text-zinc-800"
-            )}
-          >
-            <Terminal size={16} />
-            <span>Params</span>
-          </button>
-          <button
-            onClick={() => setActiveMobileTab('mnemotecnia')}
-            className={clsx(
-              "flex flex-col items-center gap-0.5 py-1 px-2 text-[10px] font-semibold transition-all rounded-lg",
-              activeMobileTab === 'mnemotecnia' ? "text-purple-600 bg-purple-50 font-bold" : "text-zinc-500 hover:text-zinc-800"
-            )}
-          >
-            <BookOpen size={16} />
-            <span>Campayo</span>
-          </button>
-          <button
-            onClick={() => setActiveMobileTab('tutor')}
-            className={clsx(
-              "flex flex-col items-center gap-0.5 py-1 px-2 text-[10px] font-semibold transition-all rounded-lg",
-              activeMobileTab === 'tutor' ? "text-purple-600 bg-purple-50 font-bold" : "text-zinc-500 hover:text-zinc-800"
-            )}
-          >
-            <Sparkles size={16} className={activeMobileTab === 'tutor' ? "text-purple-600" : "text-zinc-500"} />
-            <span>Tutor AI</span>
-          </button>
-        </div>
       )}
     </div>
   )

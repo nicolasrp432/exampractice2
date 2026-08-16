@@ -1,9 +1,9 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { NavLink } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Home, Map, Wrench, Clock, BarChart2, GraduationCap,
-  ChevronLeft, ChevronRight,
+  ChevronLeft, ChevronRight, X,
 } from 'lucide-react'
 import clsx from 'clsx'
 import { useProgressStore } from '@/store/progressStore'
@@ -27,37 +27,39 @@ const LEVELS = [
 
 export default function Sidebar({ mobileOpen = false, onCloseMobile = () => {} }) {
   const [collapsed, setCollapsed] = useState(false)
+  const [isDesktop, setIsDesktop] = useState(() => (typeof window !== 'undefined' ? window.innerWidth >= 768 : true))
   const ejercicios = useProgressStore(s => s.ejercicios)
 
-  const content = (
+  useEffect(() => {
+    const mql = window.matchMedia('(min-width: 768px)')
+    const onChange = (e) => setIsDesktop(e.matches)
+    setIsDesktop(mql.matches)
+    mql.addEventListener('change', onChange)
+    return () => mql.removeEventListener('change', onChange)
+  }, [])
+
+  const renderContent = (isDrawer = false) => (
     <div className="flex flex-col h-full bg-white">
-      {/* Logo */}
+      {/* Logo & Header */}
       <div className="flex items-center justify-between h-14 px-4 border-b border-[#E4E4E7]">
         <div className="flex items-center gap-2.5 min-w-0">
           <div className="w-8 h-8 rounded-lg bg-zinc-900 flex items-center justify-center text-white font-bold text-sm shrink-0">
             42
           </div>
-          <AnimatePresence initial={false}>
-            {(!collapsed || mobileOpen) && (
-              <motion.span
-                initial={{ opacity: 0, width: 0 }}
-                animate={{ opacity: 1, width: 'auto' }}
-                exit={{ opacity: 0, width: 0 }}
-                transition={{ duration: 0.15 }}
-                className="font-semibold text-zinc-900 whitespace-nowrap overflow-hidden"
-              >
-                Prep
-              </motion.span>
-            )}
-          </AnimatePresence>
+          {(!collapsed || isDrawer) && (
+            <span className="font-semibold text-zinc-900 whitespace-nowrap overflow-hidden">
+              Prep
+            </span>
+          )}
         </div>
-        {mobileOpen && (
+        {isDrawer && (
           <button
             onClick={onCloseMobile}
-            className="md:hidden p-1.5 rounded-lg text-zinc-500 hover:bg-zinc-100"
-            aria-label="Cerrar menú"
+            className="p-2 rounded-lg text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100 active:bg-zinc-200 transition-colors"
+            aria-label="Cerrar menú de navegación"
+            title="Cerrar menú"
           >
-            <ChevronLeft size={20} />
+            <X size={20} />
           </button>
         )}
       </div>
@@ -69,7 +71,9 @@ export default function Sidebar({ mobileOpen = false, onCloseMobile = () => {} }
             key={to}
             to={to}
             end={to === '/'}
-            onClick={() => onCloseMobile()}
+            onClick={() => {
+              if (isDrawer) onCloseMobile()
+            }}
             className={({ isActive }) =>
               clsx(
                 'flex items-center gap-3 px-2.5 py-2.5 rounded-lg text-sm font-medium transition-colors duration-150',
@@ -78,40 +82,24 @@ export default function Sidebar({ mobileOpen = false, onCloseMobile = () => {} }
                   : 'text-zinc-500 hover:text-zinc-800 hover:bg-zinc-50'
               )
             }
-            title={collapsed && !mobileOpen ? label : undefined}
+            title={collapsed && !isDrawer ? label : undefined}
           >
             <Icon size={18} className="shrink-0" />
-            <AnimatePresence initial={false}>
-              {(!collapsed || mobileOpen) && (
-                <motion.span
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.1 }}
-                  className="whitespace-nowrap"
-                >
-                  {label}
-                </motion.span>
-              )}
-            </AnimatePresence>
+            {(!collapsed || isDrawer) && (
+              <span className="whitespace-nowrap">{label}</span>
+            )}
           </NavLink>
         ))}
 
         {/* Separador + Niveles */}
         <div className="mt-3 mb-1">
-          <AnimatePresence initial={false}>
-            {(!collapsed || mobileOpen) && (
-              <motion.p
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="px-2.5 text-[11px] font-semibold text-zinc-400 uppercase tracking-wider mb-1"
-              >
-                Niveles del Examen
-              </motion.p>
-            )}
-          </AnimatePresence>
-          {collapsed && !mobileOpen && <div className="border-t border-[#E4E4E7] mx-2 my-2" />}
+          {(!collapsed || isDrawer) ? (
+            <p className="px-2.5 text-[11px] font-semibold text-zinc-400 uppercase tracking-wider mb-1">
+              Niveles del Examen
+            </p>
+          ) : (
+            <div className="border-t border-[#E4E4E7] mx-2 my-2" />
+          )}
         </div>
 
         {LEVELS.map(({ nivel, emoji, room, total, to, color, activeBg, activeBar }) => {
@@ -123,89 +111,91 @@ export default function Sidebar({ mobileOpen = false, onCloseMobile = () => {} }
             <NavLink
               key={nivel}
               to={to}
-              onClick={() => onCloseMobile()}
+              onClick={() => {
+                if (isDrawer) onCloseMobile()
+              }}
               className={({ isActive }) =>
                 clsx(
                   'flex items-center gap-3 px-2.5 py-2.5 rounded-lg transition-colors duration-150 group',
                   isActive ? activeBg : 'hover:bg-zinc-50'
                 )
               }
-              title={collapsed && !mobileOpen ? `Nivel ${nivel} — ${room}` : undefined}
+              title={collapsed && !isDrawer ? `Nivel ${nivel} — ${room}` : undefined}
             >
               <span className="text-base shrink-0">{emoji}</span>
-              <AnimatePresence initial={false}>
-                {(!collapsed || mobileOpen) && (
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    className="flex-1 min-w-0"
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className={clsx('text-sm font-medium', color)}>{room}</span>
-                      <span className="text-xs text-zinc-400">{dominados}/{total}</span>
-                    </div>
-                    <div className="mt-1.5 h-1.5 rounded-full bg-zinc-100 overflow-hidden">
-                      <div
-                        className={clsx('h-full rounded-full transition-all duration-500', activeBar)}
-                        style={{ width: `${pct}%` }}
-                      />
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
+              {(!collapsed || isDrawer) && (
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between">
+                    <span className={clsx('text-sm font-medium', color)}>{room}</span>
+                    <span className="text-xs text-zinc-400">{dominados}/{total}</span>
+                  </div>
+                  <div className="mt-1.5 h-1.5 rounded-full bg-zinc-100 overflow-hidden">
+                    <div
+                      className={clsx('h-full rounded-full transition-all duration-500', activeBar)}
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+                </div>
+              )}
             </NavLink>
           )
         })}
       </nav>
 
       {/* Botón colapsar (solo desktop) */}
-      <div className="hidden md:block p-2 border-t border-[#E4E4E7]">
-        <button
-          onClick={() => setCollapsed(c => !c)}
-          className="w-full flex items-center justify-center gap-2 py-1.5 px-2 rounded-lg text-zinc-400 hover:text-zinc-600 hover:bg-zinc-50 transition-colors duration-150 text-sm"
-          title={collapsed ? 'Expandir sidebar' : 'Colapsar sidebar'}
-        >
-          {collapsed ? <ChevronRight size={16} /> : <><ChevronLeft size={16} /><span className="text-xs">Colapsar</span></>}
-        </button>
-      </div>
+      {!isDrawer && (
+        <div className="p-2 border-t border-[#E4E4E7]">
+          <button
+            onClick={() => setCollapsed(c => !c)}
+            className="w-full flex items-center justify-center gap-2 py-1.5 px-2 rounded-lg text-zinc-400 hover:text-zinc-600 hover:bg-zinc-50 transition-colors duration-150 text-sm"
+            title={collapsed ? 'Expandir sidebar' : 'Colapsar sidebar'}
+          >
+            {collapsed ? <ChevronRight size={16} /> : <><ChevronLeft size={16} /><span className="text-xs">Colapsar</span></>}
+          </button>
+        </div>
+      )}
     </div>
   )
 
   return (
     <>
-      {/* Sidebar Desktop */}
-      <motion.aside
-        animate={{ width: collapsed ? 64 : 240 }}
-        transition={{ duration: 0.2, ease: 'easeInOut' }}
-        className="hidden md:flex relative flex-col h-screen bg-white border-r border-[#E4E4E7] overflow-hidden shrink-0 z-20"
-      >
-        {content}
-      </motion.aside>
+      {/* Sidebar Desktop (Only mounted on desktop screens >= 768px) */}
+      {isDesktop && (
+        <motion.aside
+          animate={{ width: collapsed ? 64 : 240 }}
+          transition={{ duration: 0.2, ease: 'easeInOut' }}
+          className="relative flex flex-col h-screen bg-white border-r border-[#E4E4E7] overflow-hidden shrink-0 z-20"
+        >
+          {renderContent(false)}
+        </motion.aside>
+      )}
 
-      {/* Mobile Drawer */}
-      <AnimatePresence>
-        {mobileOpen && (
-          <>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={onCloseMobile}
-              className="md:hidden fixed inset-0 bg-black/40 backdrop-blur-xs z-40"
-            />
-            <motion.aside
-              initial={{ x: -280 }}
-              animate={{ x: 0 }}
-              exit={{ x: -280 }}
-              transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-              className="md:hidden fixed inset-y-0 left-0 w-72 max-w-[85vw] bg-white border-r border-zinc-200 z-50 shadow-2xl overflow-hidden"
-            >
-              {content}
-            </motion.aside>
-          </>
-        )}
-      </AnimatePresence>
+      {/* Mobile Drawer (Only mounted on mobile screens < 768px when opened) */}
+      {!isDesktop && (
+        <AnimatePresence>
+          {mobileOpen && (
+            <>
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                onClick={onCloseMobile}
+                className="fixed inset-0 bg-black/50 backdrop-blur-xs z-50"
+              />
+              <motion.aside
+                initial={{ x: '-100%' }}
+                animate={{ x: 0 }}
+                exit={{ x: '-100%' }}
+                transition={{ type: 'spring', stiffness: 320, damping: 32 }}
+                className="fixed inset-y-0 left-0 w-72 max-w-[85vw] bg-white border-r border-zinc-200 z-50 shadow-2xl overflow-hidden"
+              >
+                {renderContent(true)}
+              </motion.aside>
+            </>
+          )}
+        </AnimatePresence>
+      )}
     </>
   )
 }

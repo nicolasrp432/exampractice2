@@ -3,7 +3,6 @@ import { Outlet, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import Sidebar from './Sidebar'
 import Header from './Header'
-import MobileBottomNav from './MobileBottomNav'
 import { useOnlineStatus } from '@/hooks/useOnlineStatus'
 
 export default function Layout() {
@@ -45,13 +44,11 @@ export default function Layout() {
             initial={{ opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.18, ease: 'easeOut' }}
-            className="h-full pb-20 md:pb-0"
+            className="h-full pb-6 md:pb-0"
           >
             <Outlet />
           </motion.div>
         </main>
-
-        <MobileBottomNav />
       </div>
     </div>
   )

@@ -97,18 +97,26 @@ export default function Header({ onToggleMobileMenu = () => {} }) {
   }
 
   return (
-    <header className="h-14 shrink-0 border-b border-[#E4E4E7] bg-white flex items-center px-4 sm:px-6 gap-3">
+    <header className="h-14 shrink-0 border-b border-[#E4E4E7] bg-white flex items-center px-3 sm:px-6 gap-2 sm:gap-3">
       {/* Mobile Hamburger Button */}
       <button
         onClick={onToggleMobileMenu}
-        className="md:hidden p-2 -ml-1 text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 rounded-lg shrink-0 transition-colors"
+        className="md:hidden p-2 -ml-1 text-zinc-700 hover:text-zinc-900 active:bg-zinc-100 rounded-lg shrink-0 transition-colors"
         aria-label="Abrir menú de navegación"
+        title="Menú principal"
       >
         <Menu size={20} />
       </button>
 
+      {/* Mobile Brand Logo */}
+      <Link to="/" className="md:hidden flex items-center gap-1.5 shrink-0 mr-1">
+        <div className="w-7 h-7 rounded-lg bg-zinc-900 flex items-center justify-center text-white font-bold text-xs shadow-xs">
+          42
+        </div>
+      </Link>
+
       {/* Breadcrumb */}
-      <nav className="flex items-center gap-1 text-xs sm:text-sm flex-1 min-w-0">
+      <nav aria-label="Ruta de navegación" className="flex items-center gap-1 text-xs sm:text-sm flex-1 min-w-0">
         {crumbs.map((crumb, i) => (
           <span key={i} className="flex items-center gap-1 min-w-0">
             {i > 0 && <ChevronRight size={13} className="text-zinc-300 shrink-0" />}
