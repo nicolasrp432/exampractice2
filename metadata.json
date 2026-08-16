@@ -1,0 +1,6 @@
+{
+  "name": "42 Exam Prep",
+  "description": "Plataforma interactiva de preparación para el examen de programación C de la escuela 42 con ejercicios, simulador, palacio de la memoria y visualizadores",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

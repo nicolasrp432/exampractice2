@@ -1,0 +1,250 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Fondos */
+    --bg-primary: #FAFAFA;
+    --bg-secondary: #F4F4F5;
+    --bg-card: #FFFFFF;
+    --border: #E4E4E7;
+
+    /* Textos */
+    --text-primary: #18181B;
+    --text-secondary: #71717A;
+    --text-tertiary: #A1A1AA;
+
+    /* Acentos */
+    --accent-green: #16A34A;
+    --accent-purple: #7C3AED;
+    --accent-orange: #EA580C;
+    --accent-red: #DC2626;
+    --accent-blue: #2563EB;
+
+    /* Niveles */
+    --level-1: #7C3AED;
+    --level-2: #16A34A;
+    --level-3: #EA580C;
+    --level-4: #DC2626;
+
+    /* Terminal */
+    --terminal-bg: #1E1E2E;
+    --terminal-text: #A6E3A1;
+    --terminal-border: #313244;
+    --terminal-prompt: #A6E3A1;
+    --terminal-highlight: #F9E2AF;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  html {
+    font-family: 'Inter', system-ui, sans-serif;
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+  }
+
+  code, pre, .font-mono {
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  }
+
+  /* Scrollbar sutil */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #D4D4D8;
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #A1A1AA;
+  }
+}
+
+@layer components {
+  /* Terminal del subject */
+  .terminal-box {
+    @apply font-mono text-sm rounded-xl p-4 leading-relaxed whitespace-pre overflow-x-auto;
+    background: var(--terminal-bg);
+    color: var(--terminal-text);
+    border: 1px solid var(--terminal-border);
+  }
+
+  /* Story card */
+  .story-card {
+    @apply rounded-r-xl px-4 py-3 text-sm leading-relaxed;
+    border-left: 3px solid var(--accent-purple);
+    background: #F5F3FF;
+    color: var(--text-primary);
+  }
+
+  /* Trap card - error */
+  .trap-card-error {
+    @apply rounded-r-xl px-4 py-3 text-sm leading-relaxed;
+    border-left: 3px solid var(--accent-red);
+    background: #FEF2F2;
+    color: var(--text-primary);
+  }
+
+  /* Trick card - correct */
+  .trick-card {
+    @apply rounded-r-xl px-4 py-3 text-sm leading-relaxed;
+    border-left: 3px solid var(--accent-green);
+    background: #F0FDF4;
+    color: var(--text-primary);
+  }
+
+  /* Under the hood card */
+  .under-card {
+    @apply rounded-r-xl px-4 py-3 text-sm leading-relaxed;
+    border-left: 3px solid var(--accent-blue);
+    background: #EFF6FF;
+    color: var(--text-primary);
+  }
+
+  /* Exercise card */
+  .exercise-card {
+    @apply bg-white border border-[#E4E4E7] rounded-xl p-4 cursor-pointer
+           transition-all duration-200 hover:shadow-card-hover hover:-translate-y-0.5;
+  }
+
+  /* Level badges */
+  .level-badge-1 {
+    @apply text-xs font-semibold px-2 py-0.5 rounded-full;
+    background: #EDE9FE;
+    color: #6D28D9;
+  }
+  .level-badge-2 {
+    @apply text-xs font-semibold px-2 py-0.5 rounded-full;
+    background: #DCFCE7;
+    color: #15803D;
+  }
+  .level-badge-3 {
+    @apply text-xs font-semibold px-2 py-0.5 rounded-full;
+    background: #FEF3C7;
+    color: #B45309;
+  }
+  .level-badge-4 {
+    @apply text-xs font-semibold px-2 py-0.5 rounded-full;
+    background: #FEE2E2;
+    color: #B91C1C;
+  }
+
+  /* Status badges */
+  .status-dominado {
+    @apply text-xs font-medium px-2 py-0.5 rounded-full;
+    background: #DCFCE7;
+    color: #15803D;
+  }
+  .status-practicando {
+    @apply text-xs font-medium px-2 py-0.5 rounded-full;
+    background: #FEF3C7;
+    color: #B45309;
+  }
+  .status-no-iniciado {
+    @apply text-xs font-medium px-2 py-0.5 rounded-full;
+    background: #F4F4F5;
+    color: #71717A;
+  }
+
+  /* Anchor chips */
+  .anchor-chip {
+    @apply inline-block font-mono text-xs px-2 py-0.5 rounded-md border;
+    background: #F0FDF4;
+    color: #15803D;
+    border-color: #86EFAC;
+  }
+
+  /* GDB terminal */
+  .gdb-terminal {
+    @apply font-mono text-xs rounded-xl p-4 leading-relaxed overflow-x-auto;
+    background: #1E1E2E;
+    color: #CDD6F4;
+    min-height: 120px;
+  }
+  .gdb-prompt { color: #A6E3A1; }
+  .gdb-command { color: #FFFFFF; font-weight: 600; }
+  .gdb-highlight { color: #F9E2AF; }
+  .gdb-output { color: #9A9AAF; }
+  .gdb-success { color: #A6E3A1; }
+  .gdb-error { color: #F38BA8; }
+
+  /* Code diff */
+  .code-wrong {
+    @apply font-mono text-xs p-2 rounded-lg;
+    background: #FEF2F2;
+    color: #B91C1C;
+  }
+  .code-right {
+    @apply font-mono text-xs p-2 rounded-lg;
+    background: #F0FDF4;
+    color: #15803D;
+  }
+
+  /* Section label */
+  .sec-label {
+    @apply text-[10px] font-semibold uppercase tracking-widest mb-1;
+    color: var(--text-tertiary);
+  }
+
+  /* Tab button */
+  .tab-btn {
+    @apply px-3 py-1.5 text-xs font-medium rounded-lg border border-transparent
+           transition-all duration-150 cursor-pointer;
+    color: var(--text-secondary);
+  }
+  .tab-btn:hover {
+    @apply bg-[#F4F4F5];
+    color: var(--text-primary);
+  }
+  .tab-btn.active {
+    @apply bg-white border-[#E4E4E7];
+    color: var(--text-primary);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  }
+
+  /* Button variants */
+  .btn-primary {
+    @apply px-4 py-2 rounded-lg text-sm font-medium text-white
+           transition-all duration-150 hover:opacity-90 active:scale-95;
+    background: var(--accent-purple);
+  }
+  .btn-secondary {
+    @apply px-4 py-2 rounded-lg text-sm font-medium
+           bg-white border border-[#E4E4E7]
+           transition-all duration-150 hover:bg-[#F4F4F5] active:scale-95;
+    color: var(--text-primary);
+  }
+  .btn-success {
+    @apply px-4 py-2 rounded-lg text-sm font-medium text-white
+           transition-all duration-150 hover:opacity-90 active:scale-95;
+    background: var(--accent-green);
+  }
+  .btn-danger {
+    @apply px-4 py-2 rounded-lg text-sm font-medium
+           bg-[#FEF2F2] text-[#B91C1C] border border-[#FECACA]
+           transition-all duration-150 hover:bg-[#FEE2E2] active:scale-95;
+  }
+}
+
+/* Monaco Editor overrides */
+.monaco-editor {
+  border-radius: 8px !important;
+  overflow: hidden !important;
+}
+
+/* Smooth scroll */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Focus visible */
+*:focus-visible {
+  outline: 2px solid var(--accent-purple);
+  outline-offset: 2px;
+}
