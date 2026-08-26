@@ -22,6 +22,7 @@ import clsx from 'clsx';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { allExercises, getExercise } from '@/data/index';
+import { generateSocraticResponse } from '@/utils/socraticTutor';
 
 export default function GlobalAiTutorDrawer() {
   const [isOpen, setIsOpen] = useState(false);
@@ -91,29 +92,23 @@ export default function GlobalAiTutorDrawer() {
         }),
       });
 
-      if (!res.ok) {
-        throw new Error(`HTTP ${res.status}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.reply) {
+          const modelMessage = {
+            role: 'model',
+            text: data.reply,
+            timestamp: Date.now(),
+          };
+          setMessages((prev) => [...prev, modelMessage]);
+          return;
+        }
       }
-
-      const data = await res.json();
-      const modelMessage = {
-        role: 'model',
-        text: data.reply || 'No se pudo generar respuesta.',
-        timestamp: Date.now(),
-      };
-      setMessages((prev) => [...prev, modelMessage]);
+      throw new Error(`HTTP ${res.status}`);
     } catch (err) {
       console.warn('Network fallback for tutor:', err);
-      // Fallback enriquecido y formateado en markdown socrático sin mensaje genérico plano
-      const exName = activeExercise?.nombre || 'este ejercicio';
-      const fallbackReply = `### 💡 Tutoría de **${exName}**
-
-Recuerda los 3 filtros innegociables de **Moulinette**:
-1. **Filtro de Entrada**: Verifica \`argc\` al inicio. Si no es el esperado, escribe solo \`write(1, "\\n", 1);\` y retorna 0.
-2. **Límites de Memoria**: Comprueba siempre el terminador nulo \`'\\0'\` para evitar Segfaults.
-3. **Funciones Permitidas**: Respeta estrictamente lo que pide el subject sin incluir librerías no autorizadas.
-
-❓ **Dime**: ¿En qué paso exacto del bucle o condición tienes dudas para resolverlo juntos?`;
+      // Fallback socrático ultra-inteligente contextualizado a la pregunta y código
+      const fallbackReply = generateSocraticResponse(text, activeExercise, currentCode);
 
       setMessages((prev) => [
         ...prev,

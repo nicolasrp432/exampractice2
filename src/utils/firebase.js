@@ -11,19 +11,23 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID || '1:540788787318:web:2936613f96cbe86c333757',
 }
 
-const databaseId = import.meta.env.VITE_FIREBASE_FIRESTORE_DATABASE_ID || 'ai-studio-exampractice-167a4d8d-8da3-45ce-b300-3ad6e635704c'
+// Conectar con la base de datos Firestore por defecto o personalizada válida
+const customDbId = import.meta.env.VITE_FIREBASE_FIRESTORE_DATABASE_ID
 
-let app
+let app = null
 let auth = null
 let db = null
 
 try {
   app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig)
   auth = getAuth(app)
-  // Conectar con el databaseId aprovisionado si existe
-  db = databaseId ? getFirestore(app, databaseId) : getFirestore(app)
+  if (customDbId && customDbId !== '(default)' && customDbId !== 'ai-studio-exampractice-167a4d8d-8da3-45ce-b300-3ad6e635704c') {
+    db = getFirestore(app, customDbId)
+  } else {
+    db = getFirestore(app)
+  }
 } catch (error) {
-  console.error('Error al inicializar Firebase Firestore/Auth:', error)
+  console.warn('Firebase Firestore/Auth fallback init:', error?.message)
 }
 
 const isConfigured = !!app
