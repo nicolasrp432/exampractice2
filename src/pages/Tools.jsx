@@ -1,83 +1,136 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import Editor from '@monaco-editor/react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ChevronDown, ChevronUp, Cpu, Sparkles, Trophy, CheckCircle2, XCircle, RotateCcw, Wand2, Flame, Copy, Check, Dumbbell } from 'lucide-react'
+import {
+  Cpu, Sparkles, Trophy, Wand2, Flame, Copy, Check, Dumbbell,
+  ChevronDown, ChevronUp, ArrowRight, BookOpen, ShieldAlert, Code2,
+  Terminal, Zap, CheckCircle2, FileText, Layers, CheckSquare
+} from 'lucide-react'
 import clsx from 'clsx'
-import { buildQuizQuestions, decodeSubject, getToolById, getToolTrainingExercises, getUniversalTools } from '@/utils/tools'
+import { getToolById, getToolTrainingExercises, getUniversalTools } from '@/utils/tools'
 import { useProgressStore } from '@/store/progressStore'
+import SubjectDecoderStudio from '@/components/tools/SubjectDecoderStudio'
+import LightningInstinctQuiz from '@/components/tools/LightningInstinctQuiz'
 import LogicGym from '@/components/tools/LogicGym'
 
 const TABS = [
-  { id: 'tools', label: 'Las 7 Herramientas', icon: Cpu },
+  { id: 'tools', label: 'Las 7 Herramientas Universales', icon: Cpu },
   { id: 'decoder', label: 'Decodificador de Subjects', icon: Wand2 },
-  { id: 'quiz', label: 'Quiz Relámpago', icon: Flame },
-  { id: 'gimnasio', label: 'Gimnasio de Lógica', icon: Dumbbell },
+  { id: 'quiz', label: 'Quiz Relámpago (Entrenar Instinto)', icon: Flame },
+  { id: 'gimnasio', label: 'Gimnasio de Punteros y Lógica', icon: Dumbbell },
 ]
-
-function SectionTitle({ title, subtitle }) {
-  return (
-    <div className="mb-6">
-      <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-zinc-900">{title}</h2>
-      {subtitle ? <p className="mt-2 text-sm sm:text-base text-zinc-500 max-w-3xl">{subtitle}</p> : null}
-    </div>
-  )
-}
 
 function ToolCard({ tool, open, onToggle }) {
   const training = getToolTrainingExercises(tool.id)
+  
   return (
-    <motion.div layout className={clsx('rounded-3xl border bg-white shadow-sm overflow-hidden', open ? 'border-zinc-300' : 'border-zinc-200')}>
-      <button onClick={onToggle} className="w-full px-5 py-4 text-left flex items-center gap-4 hover:bg-zinc-50 transition-colors">
-        <div className="h-12 w-12 rounded-2xl bg-zinc-100 flex items-center justify-center text-2xl shrink-0">{tool.emoji}</div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-3 flex-wrap">
-            <h3 className="font-bold text-zinc-900">{tool.label}</h3>
-            <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">{tool.frequency}</span>
-          </div>
-          <p className="mt-1 text-sm text-zinc-500 line-clamp-2">{tool.description}</p>
+    <motion.div
+      layout
+      className={clsx(
+        'rounded-2xl border bg-white shadow-xs overflow-hidden transition-all',
+        open ? 'border-zinc-400 ring-1 ring-zinc-900/5' : 'border-zinc-200 hover:border-zinc-300'
+      )}
+    >
+      <button
+        onClick={onToggle}
+        className="w-full p-5 text-left flex items-start sm:items-center gap-4 hover:bg-zinc-50/80 transition-colors"
+      >
+        <div className="h-12 w-12 rounded-2xl bg-zinc-900 text-white flex items-center justify-center text-2xl shrink-0 shadow-sm">
+          {tool.emoji}
         </div>
-        {open ? <ChevronUp size={18} className="text-zinc-400" /> : <ChevronDown size={18} className="text-zinc-400" />}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <h3 className="text-base sm:text-lg font-black text-zinc-900">{tool.label}</h3>
+            <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+              {tool.frequency}
+            </span>
+          </div>
+          <p className="mt-1 text-xs sm:text-sm text-zinc-500 leading-relaxed line-clamp-2">
+            {tool.description}
+          </p>
+        </div>
+        <div className="shrink-0 text-zinc-400 ml-2 mt-1 sm:mt-0">
+          {open ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+        </div>
       </button>
 
       <AnimatePresence initial={false}>
         {open && (
-          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
-            <div className="px-5 pb-5 pt-1 grid gap-4 md:grid-cols-2">
-              <div className="space-y-3">
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="overflow-hidden border-t border-zinc-100 bg-zinc-50/50"
+          >
+            <div className="p-5 sm:p-6 grid gap-6 md:grid-cols-2">
+              {/* Columna 1: Reconocimiento y Patrones */}
+              <div className="space-y-4">
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400">Cuándo entra</p>
-                  <p className="mt-1 text-sm text-zinc-700">{tool.recognition}</p>
+                  <span className="text-xs font-bold uppercase tracking-wider text-indigo-600 block mb-1">
+                    🎯 Cuándo entra en juego
+                  </span>
+                  <p className="text-xs sm:text-sm text-zinc-700 leading-relaxed font-medium">
+                    {tool.recognition}
+                  </p>
                 </div>
+
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400">Patrones</p>
-                  <div className="mt-2 flex flex-wrap gap-2">
+                  <span className="text-xs font-bold uppercase tracking-wider text-zinc-400 block mb-1.5">
+                    ⚙️ Patrones de Código Idiomáticos
+                  </span>
+                  <div className="flex flex-wrap gap-1.5">
                     {tool.patterns.map((pattern) => (
-                      <span key={pattern} className="px-2.5 py-1 rounded-lg bg-sky-50 text-sky-700 border border-sky-200 text-xs font-mono">{pattern}</span>
+                      <span
+                        key={pattern}
+                        className="px-2.5 py-1 rounded-lg bg-zinc-900 text-emerald-400 font-mono text-xs shadow-2xs"
+                      >
+                        {pattern}
+                      </span>
                     ))}
                   </div>
                 </div>
+
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400">Trampas</p>
-                  <ul className="mt-2 space-y-2 text-sm text-zinc-700">
-                    {tool.traps.map((trap) => <li key={trap} className="flex gap-2"><span className="mt-1 h-1.5 w-1.5 rounded-full bg-rose-400 shrink-0" />{trap}</li>)}
+                  <span className="text-xs font-bold uppercase tracking-wider text-rose-600 block mb-1.5">
+                    ⚠️ Trampas Típicas en Examen
+                  </span>
+                  <ul className="space-y-1.5">
+                    {tool.traps.map((trap) => (
+                      <li key={trap} className="flex items-start gap-2 text-xs sm:text-sm text-zinc-700">
+                        <span className="h-1.5 w-1.5 rounded-full bg-rose-500 mt-1.5 shrink-0" />
+                        <span>{trap}</span>
+                      </li>
+                    ))}
                   </ul>
                 </div>
               </div>
-              <div className="space-y-3">
+
+              {/* Columna 2: Ejercicios para entrenar y Regla Mnemotécnica */}
+              <div className="space-y-4">
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400">Ejercicios para entrenar</p>
-                  <div className="mt-2 flex flex-wrap gap-2">
+                  <span className="text-xs font-bold uppercase tracking-wider text-zinc-400 block mb-1.5">
+                    📋 Ejercicios donde se aplica
+                  </span>
+                  <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto p-1">
                     {training.map((exercise) => (
-                      <span key={exercise.id} className="px-2.5 py-1 rounded-lg bg-zinc-100 text-zinc-700 border border-zinc-200 text-xs font-medium">{exercise.nombre}</span>
+                      <span
+                        key={exercise.id}
+                        className="px-2.5 py-1 rounded-lg bg-white text-zinc-800 border border-zinc-200 text-xs font-mono font-medium shadow-2xs"
+                      >
+                        {exercise.nombre}
+                      </span>
                     ))}
                   </div>
                 </div>
+
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400">Reglas rápidas</p>
-                  <div className="mt-2 rounded-2xl border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-700">
-                    <p>{tool.tools.map((t) => getToolById(t)?.label).filter(Boolean).join(' + ') || tool.label}</p>
-                    <p className="mt-2 text-zinc-500">{tool.subjectHints.join(' · ')}</p>
+                  <span className="text-xs font-bold uppercase tracking-wider text-amber-700 block mb-1.5">
+                    💡 Palabras Clave del Subject
+                  </span>
+                  <div className="p-3.5 rounded-xl border border-amber-200 bg-amber-50/70 text-xs text-amber-950 space-y-1">
+                    <p className="font-semibold">Detectores en el texto:</p>
+                    <p className="font-mono text-zinc-700">{tool.subjectHints.join(' · ')}</p>
                   </div>
                 </div>
               </div>
@@ -86,202 +139,6 @@ function ToolCard({ tool, open, onToggle }) {
         )}
       </AnimatePresence>
     </motion.div>
-  )
-}
-
-function DecoderPanel() {
-  const [subject, setSubject] = useState('Write a program that trims duplicate spaces from argv and prints the first word')
-  const decoded = useMemo(() => decodeSubject(subject), [subject])
-  const [copied, setCopied] = useState(false)
-
-  const handleCopy = () => {
-    if (!decoded.skeleton) return
-    navigator.clipboard.writeText(decoded.skeleton).then(() => {
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
-    })
-  }
-
-  return (
-    <div className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
-      <div className="rounded-3xl border border-zinc-200 bg-white p-5 shadow-sm space-y-4">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400">Subject en inglés</p>
-          <textarea
-            value={subject}
-            onChange={(e) => setSubject(e.target.value)}
-            rows={6}
-            className="mt-2 w-full rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-800 outline-none transition focus:border-sky-400 focus:ring-4 focus:ring-sky-100"
-          />
-        </div>
-
-        <div className="flex flex-wrap gap-2">
-          {['argc', 'strings', 'ascii', 'bandera', 'recursion', 'bits', 'malloc'].map((hint) => (
-            <button key={hint} onClick={() => setSubject((prev) => `${prev} ${hint}`.trim())} className="px-3 py-1.5 rounded-full border border-zinc-200 bg-white text-xs font-medium text-zinc-600 hover:border-sky-300 hover:text-sky-700 transition-colors">
-              + {hint}
-            </button>
-          ))}
-        </div>
-
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
-            <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400">Herramientas detectadas</p>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {decoded.toolIds.length ? decoded.toolIds.map((id) => {
-                const tool = getToolById(id)
-                return <span key={id} className="px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-semibold">{tool?.emoji} {tool?.label}</span>
-              }) : <span className="text-sm text-zinc-500">Ninguna todavía.</span>}
-            </div>
-          </div>
-          <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
-            <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400">Keywords capturadas</p>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {decoded.keywords.length ? decoded.keywords.map((keyword) => (
-                <span key={keyword} className="px-2.5 py-1 rounded-lg bg-sky-50 text-sky-700 border border-sky-200 text-xs font-mono">{keyword}</span>
-              )) : <span className="text-sm text-zinc-500">Escribe más texto para afinar.</span>}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="rounded-3xl border border-zinc-200 bg-white shadow-sm overflow-hidden flex flex-col">
-        <div className="border-b border-zinc-200 px-5 py-4 flex items-center justify-between">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400">Skeleton sugerido</p>
-            <p className="text-sm text-zinc-600">Pega esto en el editor y ajusta la lógica.</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleCopy}
-              className="flex items-center gap-1 text-xs text-zinc-600 hover:text-zinc-950 bg-zinc-50 border border-zinc-200 px-2.5 py-1 rounded-lg transition-colors"
-              title="Copiar código"
-            >
-              {copied ? <Check size={12} className="text-green-600" /> : <Copy size={12} />}
-              <span>{copied ? 'Copiado' : 'Copiar'}</span>
-            </button>
-            <Sparkles className="text-sky-500 shrink-0" size={18} />
-          </div>
-        </div>
-        <div className="flex-1 min-h-[420px]">
-          <Editor
-            height="100%"
-            defaultLanguage="c"
-            value={decoded.skeleton}
-            options={{ readOnly: true, minimap: { enabled: false }, fontSize: 13, scrollBeyondLastLine: false, lineNumbers: 'on', wordWrap: 'on' }}
-            theme="vs-light"
-          />
-        </div>
-        <div className="p-5 border-t border-zinc-200 bg-zinc-50">
-          <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400">Ejercicios similares</p>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {decoded.similarExercises.map((exercise) => (
-              <span key={exercise.id} className="px-2.5 py-1 rounded-lg bg-white border border-zinc-200 text-xs text-zinc-700">{exercise.nombre}</span>
-            ))}
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function QuizPanel() {
-  const quiz = useMemo(() => buildQuizQuestions(), [])
-  const [index, setIndex] = useState(0)
-  const [picked, setPicked] = useState(null)
-  const [score, setScore] = useState(0)
-  const [done, setDone] = useState(false)
-
-  const current = quiz[index]
-
-  useEffect(() => {
-    setPicked(null)
-    setDone(false)
-  }, [index])
-
-  const handlePick = (optionIndex) => {
-    if (picked !== null) return
-    setPicked(optionIndex)
-    if (optionIndex === current.correctIndex) setScore((s) => s + 1)
-  }
-
-  const next = () => {
-    if (index === quiz.length - 1) {
-      setDone(true)
-      return
-    }
-    setIndex((i) => i + 1)
-  }
-
-  const reset = () => {
-    setIndex(0)
-    setPicked(null)
-    setScore(0)
-    setDone(false)
-  }
-
-  if (done) {
-    return (
-      <div className="max-w-2xl mx-auto rounded-3xl border border-zinc-200 bg-white p-8 text-center shadow-sm">
-        <Trophy className="mx-auto text-amber-500" size={44} />
-        <h3 className="mt-4 text-2xl font-black text-zinc-900">Resultado final</h3>
-        <p className="mt-2 text-zinc-500">Marcaste {score}/{quiz.length}.</p>
-        <button onClick={reset} className="mt-6 inline-flex items-center gap-2 rounded-full bg-zinc-900 px-5 py-2.5 text-sm font-semibold text-white hover:bg-zinc-800">
-          <RotateCcw size={16} /> Repetir
-        </button>
-      </div>
-    )
-  }
-
-  return (
-    <div className="max-w-3xl mx-auto space-y-6">
-      <div className="flex items-center justify-between text-sm font-semibold text-zinc-500">
-        <span>Pregunta {index + 1}/{quiz.length}</span>
-        <span>Score {score}</span>
-      </div>
-
-      <div className="rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm">
-        <p className="text-lg font-bold text-zinc-900">{current.prompt}</p>
-        <div className="mt-5 grid gap-3 sm:grid-cols-2">
-          {current.options.map((option, optionIndex) => {
-            const correct = optionIndex === current.correctIndex
-            const selected = picked === optionIndex
-            const showState = picked !== null
-            return (
-              <button
-                key={option.id}
-                onClick={() => handlePick(optionIndex)}
-                className={clsx(
-                  'rounded-2xl border px-4 py-4 text-left transition-all',
-                  showState && correct ? 'border-green-300 bg-green-50' :
-                  showState && selected && !correct ? 'border-red-300 bg-red-50' :
-                  'border-zinc-200 bg-zinc-50 hover:border-sky-300 hover:bg-sky-50'
-                )}
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <span className="font-semibold text-zinc-900">{option.emoji} {option.label}</span>
-                  {showState && correct ? <CheckCircle2 className="text-green-600" size={18} /> : null}
-                  {showState && selected && !correct ? <XCircle className="text-red-600" size={18} /> : null}
-                </div>
-              </button>
-            )
-          })}
-        </div>
-
-        {picked !== null && (
-          <div className="mt-5 rounded-2xl border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-700">
-            <p className="font-semibold text-zinc-900">{picked === current.correctIndex ? 'Correcto.' : 'No.'}</p>
-            <p className="mt-1">{current.explanation}</p>
-          </div>
-        )}
-
-        <div className="mt-6 flex items-center justify-between gap-3">
-          <button onClick={reset} className="rounded-full border border-zinc-200 px-4 py-2 text-sm font-semibold text-zinc-600 hover:bg-zinc-50">Reset</button>
-          <button onClick={next} disabled={picked === null} className="rounded-full bg-zinc-900 px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-40">
-            {index === quiz.length - 1 ? 'Terminar' : 'Siguiente'}
-          </button>
-        </div>
-      </div>
-    </div>
   )
 }
 
@@ -307,86 +164,118 @@ export default function Tools() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-zinc-50 to-white">
-      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-10">
-        <header className="rounded-[2rem] border border-zinc-200 bg-white p-6 shadow-sm sm:p-8">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-            <div className="max-w-3xl">
-              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-sky-500">Prompt 12</p>
-              <h1 className="mt-2 text-3xl font-black tracking-tight text-zinc-900 sm:text-5xl">Tools</h1>
-              <p className="mt-3 text-sm sm:text-base text-zinc-600">
-                Las 7 herramientas universales, un decodificador de subjects y un quiz relámpago para entrenar el instinto antes de abrir el editor.
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-3 text-sm">
-              <div className="rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3">
-                <div className="text-zinc-400 font-semibold uppercase tracking-wide text-[11px]">Herramientas</div>
-                <div className="mt-1 text-xl font-black text-zinc-900">7</div>
-              </div>
-              <div className="rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3">
-                <div className="text-zinc-400 font-semibold uppercase tracking-wide text-[11px]">Dominados</div>
-                <div className="mt-1 text-xl font-black text-zinc-900">{ejerciciosDominados}</div>
-              </div>
-            </div>
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6">
+      {/* Header Didáctico */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-zinc-200 pb-6">
+        <div className="flex items-center gap-3.5">
+          <div className="h-12 w-12 rounded-2xl bg-zinc-900 text-white flex items-center justify-center shadow-md shrink-0">
+            <Cpu size={26} className="text-amber-400" />
           </div>
-        </header>
+          <div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-zinc-900">
+                Herramientas &amp; Instinto 42
+              </h1>
+              <span className="rounded-full bg-amber-100 text-amber-800 text-[11px] font-bold px-2.5 py-0.5 border border-amber-200">
+                Lectura &amp; Resolución
+              </span>
+            </div>
+            <p className="text-sm text-zinc-500 mt-1 max-w-xl">
+              Las 7 herramientas universales, decodificador instantáneo de subjects y quiz relámpago para entrenar el instinto antes de abrir el editor.
+            </p>
+          </div>
+        </div>
 
-        <div className="mt-6 rounded-full border border-zinc-200 bg-white p-2 shadow-sm flex flex-wrap gap-2">
+        {/* Selector de Pestañas */}
+        <div className="flex items-center gap-1 rounded-xl bg-zinc-100 p-1 text-xs font-medium self-stretch sm:self-auto overflow-x-auto">
           {TABS.map((tab) => {
             const Icon = tab.icon
             const active = activeTab === tab.id
             return (
-              <button key={tab.id} onClick={() => selectTab(tab.id)} className={clsx('flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition-colors', active ? 'bg-zinc-900 text-white' : 'text-zinc-600 hover:bg-zinc-100')}>
-                <Icon size={16} />
-                {tab.label}
+              <button
+                key={tab.id}
+                onClick={() => selectTab(tab.id)}
+                className={clsx(
+                  'flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg transition-all whitespace-nowrap',
+                  active
+                    ? 'bg-white text-zinc-900 shadow-xs font-semibold'
+                    : 'text-zinc-500 hover:text-zinc-800'
+                )}
+              >
+                <Icon size={14} className={active ? 'text-indigo-600' : ''} />
+                <span>{tab.label}</span>
               </button>
             )
           })}
         </div>
+      </div>
 
-        <div className="mt-8">
-          <AnimatePresence mode="wait">
-            <motion.section
-              key={activeTab}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              transition={{ duration: 0.2 }}
-            >
-              {activeTab === 'tools' && (
-                <div>
-                  <SectionTitle title="Las 7 herramientas" subtitle="Úsalas como filtros mentales: no resuelven todo, pero reducen el espacio de búsqueda en segundos." />
-                  <div className="space-y-4">
-                    {tools.map((tool) => (
-                      <ToolCard key={tool.id} tool={tool} open={openToolId === tool.id} onToggle={() => setOpenToolId((current) => (current === tool.id ? '' : tool.id))} />
-                    ))}
+      {/* Contenido Dinámico por Pestaña */}
+      <div>
+        <AnimatePresence mode="wait">
+          <motion.section
+            key={activeTab}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.2 }}
+          >
+            {/* ─── TAB 1: LAS 7 HERRAMIENTAS UNIVERSALES ─── */}
+            {activeTab === 'tools' && (
+              <div className="space-y-6">
+                <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-xs space-y-2">
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-lg font-black text-zinc-900 flex items-center gap-2">
+                      <Sparkles size={18} className="text-amber-500" />
+                      El Cinturón de las 7 Herramientas
+                    </h2>
+                    <span className="text-xs text-zinc-400 font-mono">7 Arquetipos Esenciales</span>
                   </div>
+                  <p className="text-xs sm:text-sm text-zinc-600 leading-relaxed">
+                    Todo ejercicio del examen de 42 se resuelve combinando un subconjunto de estas 7 herramientas. Úsalas como filtros mentales inmediatos para saber exactamente qué patrón aplicar en cuanto leas las primeras 3 líneas del enunciado.
+                  </p>
                 </div>
-              )}
 
-              {activeTab === 'decoder' && (
-                <div>
-                  <SectionTitle title="Decodificador de Subjects" subtitle="Pega el subject y mira qué herramientas entran, qué ejercicios lo entrenan y cuál sería el esqueleto inicial." />
-                  <DecoderPanel />
+                <div className="space-y-3">
+                  {tools.map((tool) => (
+                    <ToolCard
+                      key={tool.id}
+                      tool={tool}
+                      open={openToolId === tool.id}
+                      onToggle={() => setOpenToolId((curr) => (curr === tool.id ? '' : tool.id))}
+                    />
+                  ))}
                 </div>
-              )}
+              </div>
+            )}
 
-              {activeTab === 'quiz' && (
-                <div>
-                  <SectionTitle title="Quiz relámpago" subtitle="Lee el subject, identifica la herramienta y responde sin pensar de más. Ritmo corto, repetición alta." />
-                  <QuizPanel />
-                </div>
-              )}
+            {/* ─── TAB 2: DECODIFICADOR DE SUBJECTS ─── */}
+            {activeTab === 'decoder' && (
+              <SubjectDecoderStudio />
+            )}
 
-              {activeTab === 'gimnasio' && (
-                <div>
-                  <SectionTitle title="Gimnasio de Lógica" subtitle="Entrena tus bases de punteros, aritmética ASCII y seguimiento de banderas de forma visual y didáctica." />
-                  <LogicGym />
+            {/* ─── TAB 3: QUIZ RELÁMPAGO ─── */}
+            {activeTab === 'quiz' && (
+              <LightningInstinctQuiz />
+            )}
+
+            {/* ─── TAB 4: GIMNASIO DE LÓGICA ─── */}
+            {activeTab === 'gimnasio' && (
+              <div className="space-y-6">
+                <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-xs">
+                  <h2 className="text-lg font-black text-zinc-900 flex items-center gap-2">
+                    <Dumbbell size={18} className="text-indigo-600" />
+                    Gimnasio de Lógica y Micro-Operaciones
+                  </h2>
+                  <p className="text-xs text-zinc-500 mt-1">
+                    Entrena la traza mental rápida: desplazamiento de punteros en memoria, aritmética ASCII y conmutación de banderas con feedback visual instantáneo.
+                  </p>
                 </div>
-              )}
-            </motion.section>
-          </AnimatePresence>
-        </div>
+                <LogicGym />
+              </div>
+            )}
+          </motion.section>
+        </AnimatePresence>
       </div>
     </div>
   )

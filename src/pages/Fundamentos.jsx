@@ -4,17 +4,17 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   GraduationCap, ArrowRight, CheckCircle2, Circle, Sparkles, Box,
   Binary, Network, Layers, Terminal, ToggleLeft, HelpCircle, Trophy,
-  Play, BookOpen, Lightbulb, Zap, Code2, Check, X, Brain,
+  Play, BookOpen, Lightbulb, Zap, Code2, Check, X, Brain, Compass, ShieldAlert, Cpu
 } from 'lucide-react'
 import clsx from 'clsx'
 import confetti from 'canvas-confetti'
-import { getUniversalTools, getToolTrainingExercises } from '@/utils/tools'
-import { useProgressStore } from '@/store/progressStore'
+import { allExercises } from '@/data/index'
 import Memory3DVisualizer from '@/components/three/Memory3DVisualizer'
 import BitSwitches3D from '@/components/three/BitSwitches3D'
 import LinkedList3D from '@/components/three/LinkedList3D'
 import StackFrames3DVisualizer from '@/components/three/StackFrames3DVisualizer'
 import AlgorithmThinkingGuide from '@/components/exercise/AlgorithmThinkingGuide'
+import { PATTERN_ARCHETYPES } from '@/data/exerciseThinkingRegistry'
 
 // ─── 8 Pilares Fundamentales ───────────────────────────────────────────────────
 const FUNDAMENTALS_MODULES = [
@@ -230,16 +230,19 @@ const FUNDAMENTALS_MODULES = [
 ]
 
 export default function Fundamentos() {
-  const [activeTab, setActiveTab] = useState('academia') // 'academia' | 'laboratorio' | 'quizzes'
+  const [activeTab, setActiveTab] = useState('academia') // 'academia' | 'metodo' | 'laboratorio' | 'quizzes'
   const [selectedModuleId, setSelectedModuleId] = useState(FUNDAMENTALS_MODULES[0].id)
   const [quizAnswers, setQuizAnswers] = useState({})
-  const [active3DLab, setActive3DLab] = useState('memory') // 'memory' | 'bits' | 'list'
-  
-  const ejerciciosProgreso = useProgressStore((s) => s.ejercicios)
+  const [active3DLab, setActive3DLab] = useState('memory') // 'memory' | 'bits' | 'list' | 'stack'
+  const [selectedExerciseExample, setSelectedExerciseExample] = useState('first_word')
 
   const selectedModule = useMemo(() => {
     return FUNDAMENTALS_MODULES.find((m) => m.id === selectedModuleId) || FUNDAMENTALS_MODULES[0]
   }, [selectedModuleId])
+
+  const targetExercise = useMemo(() => {
+    return allExercises.find((e) => e.id === selectedExerciseExample) || allExercises[0]
+  }, [selectedExerciseExample])
 
   const handleQuizAnswer = (moduleId, optionIndex, correctIndex) => {
     const isCorrect = optionIndex === correctIndex
@@ -275,7 +278,7 @@ export default function Fundamentos() {
               </span>
             </div>
             <p className="text-sm text-zinc-500 mt-1 max-w-xl">
-              Domina la memoria, punteros, bits y lógica de C mediante modelos 3D interactivos y analogías visuales intuitivas.
+              Domina la memoria, punteros, bits y lógica de C mediante modelos 3D interactivos, arquetipos algorítmicos y analogías visuales intuitivas.
             </p>
           </div>
         </div>
@@ -304,7 +307,7 @@ export default function Fundamentos() {
             )}
           >
             <Brain size={14} className="text-indigo-600" />
-            <span>Método Lógico</span>
+            <span>Razonamiento &amp; Arquetipos</span>
           </button>
           <button
             onClick={() => setActiveTab('laboratorio')}
@@ -342,7 +345,7 @@ export default function Fundamentos() {
               Ruta del Aprendiz al Maestro
             </p>
             <div className="space-y-1.5">
-              {FUNDAMENTALS_MODULES.map((mod, idx) => {
+              {FUNDAMENTALS_MODULES.map((mod) => {
                 const Icon = mod.icon
                 const isSelected = selectedModuleId === mod.id
                 const isPassed = quizAnswers[mod.id]?.correct
@@ -410,7 +413,7 @@ export default function Fundamentos() {
                   </p>
                 </div>
 
-                {/* Analogía para niños / principiantes */}
+                {/* Analogía para principiantes */}
                 <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-4 flex gap-3">
                   <span className="text-2xl shrink-0">💡</span>
                   <div>
@@ -543,17 +546,37 @@ export default function Fundamentos() {
         </div>
       )}
 
-      {/* ─── TAB 2: MÉTODO DE PENSAMIENTO LÓGICO ─────────────────────────── */}
+      {/* ─── TAB 2: MÉTODO DE PENSAMIENTO LÓGICO Y ARQUETIPOS ────────────────── */}
       {activeTab === 'metodo' && (
         <div className="space-y-6">
-          <AlgorithmThinkingGuide
-            exercise={{
-              id: 'first_word',
-              nombre: 'first_word (Ejemplo Canónico)',
-              tipoEntrega: 'programa',
-              descripcion: 'Escribe un programa que tome un string y muestre su primera palabra seguida de un \\n.',
-            }}
-          />
+          {/* Selector de Ejercicio de Ejemplo para el Desglose */}
+          <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-xs space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-black text-zinc-900 flex items-center gap-2">
+                  <Compass size={18} className="text-indigo-600" />
+                  Laboratorio de Arquetipos Algorítmicos
+                </h2>
+                <p className="text-xs text-zinc-500 mt-0.5">
+                  Selecciona cualquier ejercicio canónico del examen para ver cómo se descompone su lógica de resolución:
+                </p>
+              </div>
+
+              <select
+                value={selectedExerciseExample}
+                onChange={(e) => setSelectedExerciseExample(e.target.value)}
+                className="px-3 py-2 rounded-xl border border-zinc-200 bg-zinc-50 font-semibold text-xs text-zinc-800 outline-none focus:border-indigo-500"
+              >
+                {allExercises.map((ex) => (
+                  <option key={ex.id} value={ex.id}>
+                    Nivel {ex.nivel} · {ex.nombre} ({ex.tipoEntrega})
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <AlgorithmThinkingGuide exercise={targetExercise} />
         </div>
       )}
 
@@ -620,7 +643,7 @@ export default function Fundamentos() {
         </div>
       )}
 
-      {/* ─── TAB 3: QUIZZES Y DESAFÍOS ─────────────────────────────────────── */}
+      {/* ─── TAB 4: QUIZZES Y DESAFÍOS ─────────────────────────────────────── */}
       {activeTab === 'quizzes' && (
         <div className="space-y-4">
           <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-xs">
