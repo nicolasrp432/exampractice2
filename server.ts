@@ -37,22 +37,29 @@ function getSystemInstruction(exerciseContext?: any) {
     : 'No especificado';
   const traps = exerciseContext?.trampas?.map((t: any) => `- ${t.titulo}: ${t.descripcion}`).join('\n') || '';
 
-  return `Eres el "Profesor 42 / Tutor Experto de C", un mentor pedagógico veterano especializado en la preparación del Examen 02 (Rank 02) de la Escuela 42.
+  return `Eres el "Profesor 42", el mentor veterano y exigente pero profundamente comprometido de la Escuela 42 para el Examen 02 (Rank 02).
 
-Tus Principios Pedagógicos:
-1. Método Socrático: Guía con preguntas agudas, analogías visuales y pistas de lógica. No des código completo resuelto para copiar a menos que el usuario lo solicite explícitamente tras varios intentos.
-2. Contexto de 42:
-   - Moulinette es estricta: saltos de línea obligatorios (\`write(1, "\\n", 1)\`), comprobación de \`argc\`, retorno \`0\`.
-   - Cero funciones prohibidas: solo usar las funciones permitidas (${allowed}).
-   - Trampas clásicas: punteros nulos, cadenas sin terminador '\\0', bucles infinitos, no saltar espacios iniciales (' ' y '\\t').
-3. Ejercicio Actual:
-   - Nombre: ${name}
-   - Descripción: ${desc}
-   - Palacio de la Memoria: ${palace}
-   - Errores comunes:
+PERSONALIDAD Y TONO:
+- Eres experto, directo y riguroso como la Moulinette, pero a la vez amigable y formador.
+- Si el alumno comete un error grave (Segfault, no verificar NULL, memoria sin '\\0', funciones no permitidas, ignorar argc), sé duro, tajante y claro sobre las consecuencias ("Moulinette te pondrá un 0 en el segundo 1 por esto").
+- NUNCA des respuestas kilométrica o muros de texto aburridos. Sé conciso, directo al grano y altamente estructurado.
+- Siempre remata con una PREGUNTA SOCRÁTICA desafiante que obligue al estudiante a pensar y escribir la línea correcta.
+
+REGLAS DE FORMATO ESTRICTAS:
+1. Longitud máxima: 2 a 4 párrafos cortos o puntos con viñetas. Evita rodeos innecesarios.
+2. Usa formato Markdown limpio: negritas para conceptos clave, bloques de código \`c\` cortos para ejemplos o contraejemplos, y emojis funcionales (🎯, ⚠️, 💡, ⚡, ❓).
+3. Nunca entregues la solución completa en una sola respuesta si el usuario está atascado: enséñale el paso mental y dale una pista afilada.
+4. Si el alumno te pasa código con un fallo fatal, señálale la línea exacta o el fallo de concepto y pregúntale cómo lo solucionaría.
+
+CONTEXTO DEL EJERCICIO ACTUAL:
+- Nombre: ${name}
+- Descripción: ${desc}
+- Funciones Permitidas por Moulinette: ${allowed}
+- Palacio Mnemotécnico: ${palace}
+- Trampas críticas conocidas:
 ${traps}
 
-Responde siempre en español, de forma clara, motivadora, usando markdown con negritas, listas y fragmentos explicativos.`;
+Responde siempre en español.`;
 }
 
 async function startServer() {
@@ -404,47 +411,57 @@ function compileAndRunLocal(code: string, args: string[]): Promise<any> {
 
 function generateFallbackChat(query: string, exercise?: any, code?: string): string {
   const qLower = query.toLowerCase();
-  const name = exercise?.nombre || 'este ejercicio';
-  const desc = exercise?.descripcion || '';
-  const story = exercise?.palacio?.historia || '';
-  const char = exercise?.palacio?.personaje || 'el personaje';
-  const anchors = exercise?.palacio?.anclas || [];
+  const name = exercise?.nombre || 'el ejercicio';
+  const proto = exercise?.prototipo || '';
+  const allowed = exercise?.funcionesPermitidas?.join(', ') || 'write';
+  const traps = exercise?.trampas || [];
 
   if (qLower.includes('analiz') || qLower.includes('código') || code) {
-    return `### 🧠 Análisis del Profesor 42
+    return `### 🎯 Diagnóstico Rápido: **${name}**
 
-Revisando el enfoque para **${name}**:
+Revisando el enfoque contra los estándares de Moulinette:
 
-1. **Objetivo Central**: ${desc || 'Transformar la entrada según las especificaciones de Moulinette'}.
-2. **Puntos Clave a Verificar**:
-${anchors.map((a: string) => `   - **Ancla**: ${a}`).join('\n')}
-3. **Mnemotecnia del Palacio**: Recuerda la historia con **${char}**: *"${story}"*.
+- **Contrato**: \`${proto || name}\` (Funciones permitidas: \`${allowed}\`).
+- **Peligro Inmediato**: ${traps[0]?.descripcion || 'Ojo con no validar punteros nulos o desbordar el búfer.'}
 
-**💡 Preguntas Socráticas:**
-* ¿Estás comprobando \`argc == 2\` si es un programa que espera un argumento, o llamando a \`write(1, "\\n", 1)\` inmediatamente si la cantidad no coincide?
-* ¿Tu bucle avanza el puntero o índice en todas las ramas para evitar bucles infinitos?
-* ¿Tienes en cuenta el terminador nulo \`'\\0'\` para no leer memoria fuera de los límites?`;
+${code ? `⚠️ **Revisión de tu código**:
+Fíjate con lupa en la condición de parada de tus bucles y en si estás garantizando que todo camino devuelva el valor o salida correcta.` : ''}
+
+❓ **Pregunta de examen**: ¿Qué hace exactamente tu código si la entrada es una cadena vacía \`""\` o si no se pasan parámetros? Escribe mentalmente qué imprimirá tu \`write\`.`;
   }
 
   if (qLower.includes('segfault') || qLower.includes('crash') || qLower.includes('error')) {
-    return `### 💥 Diagnóstico de Segfault en 42
+    return `### ⚠️ Alerta de Segfault (Crash en Moulinette)
 
-Los Segfaults más comunes en este tipo de ejercicio se deben a:
-1. **Acceder a \`argv[1]\` sin verificar \`argc >= 2\`**: Desreferenciar un puntero nulo produce un crash instantáneo.
-2. **No detener el recorrido en \`'\\0'\`**: Leer más allá del final de una cadena en la memoria contigua.
-3. **Punteros sin inicializar o malloc sin verificar**: Si usas memoria dinámica, siempre verifica \`if (!ptr) return (NULL);\`.
+En **42**, el 90% de los Segfaults en este nivel ocurren por una de estas 3 causas:
 
-Revisa tu condición inicial de entrada y los límites de tus bucles \`while\`.`;
+1. **Desreferenciación ciega**: Acceder a \`argv[1][0]\` sin haber comprobado antes \`if (argc != 2)\`.
+2. **Desborde de Heap/Stack**: Leer más allá del byte nulo \`'\\0'\` en un \`while (str[i])\` o olvidar el \`+ 1\` en \`malloc(len + 1)\`.
+3. **Punteros NULL**: No validar \`if (!src) return (NULL);\` al entrar en una función pura.
+
+❓ **Tu desafío**: ¿Cuál de estos 3 puntos no tiene una guardia explícita en las primeras líneas de tu archivo?`;
   }
 
-  return `### 💡 Guía del Tutor Experto 42
+  if (qLower.includes('logica') || qLower.includes('explicar') || qLower.includes('paso')) {
+    return `### ⚡ Estrategia Mental para **${name}**
 
-Para resolver **${name}** de forma infalible:
-- **Estructura**: Determina si es un programa independiente (con \`main\`) o una función que se integrará en otro archivo.
-- **Caso base**: ¿Qué pasa con una cadena vacía o sin argumentos? Debe imprimir \`\\n\` y salir limpiamente.
-- **Flujo de transformación**: Simula en tu cabeza el recorrido byte a byte.
+Para resolverlo con cero dudas en la terminal del examen:
 
-¿Qué parte específica de la lógica o de las funciones permitidas quieres que profundicemos?`;
+1. **Filtro de Entrada**: Si no se cumplen los argumentos requeridos, escribe únicamente un salto de línea \`\\n\` y sal de inmediato.
+2. **Punteros / Índices**: Recorre avanzando sólo cuando la condición sea verdadera; nunca modifiques el puntero base si necesitas retornarlo.
+3. **Terminación limpia**: Todo resultado debe cerrarse con \`'\\0'\` o salto de línea según el enunciado.
+
+❓ **Dime**: ¿Qué estructura de bucle vas a usar para recorrer la cadena y cuál es tu condición exacta de parada?`;
+  }
+
+  return `### 💡 Profesor 42 en Línea
+
+Aquí estamos para asegurar tu **100% en el Rank 02**. Para **${name}**:
+
+- **Regla de oro**: Moulinette no perdona formatos. Un espacio extra o un \`\\n\` ausente es un 0 instantáneo.
+- **Herramientas permitidas**: \`${allowed}\`.
+
+❓ ¿Qué parte concreta de la lógica estás planteando o qué comportamiento inesperado te está dando? Explícamelo en una frase y lo destripamos.`;
 }
 
 startServer().catch((err) => {

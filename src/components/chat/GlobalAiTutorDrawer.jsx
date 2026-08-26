@@ -13,12 +13,14 @@ import {
   BookOpen, 
   Maximize2, 
   Minimize2,
-  ChevronDown,
-  Terminal,
   HelpCircle,
-  Zap
+  Zap,
+  Flame,
+  CheckCircle2
 } from 'lucide-react';
 import clsx from 'clsx';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { allExercises, getExercise } from '@/data/index';
 
 export default function GlobalAiTutorDrawer() {
@@ -83,7 +85,7 @@ export default function GlobalAiTutorDrawer() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           message: text,
-          history: newHistory.slice(-10), // keep recent context
+          history: newHistory.slice(-8), // mantener contexto reciente compacto
           exerciseContext: activeExercise,
           codeContext: currentCode,
         }),
@@ -101,12 +103,23 @@ export default function GlobalAiTutorDrawer() {
       };
       setMessages((prev) => [...prev, modelMessage]);
     } catch (err) {
-      console.error(err);
+      console.warn('Network fallback for tutor:', err);
+      // Fallback enriquecido y formateado en markdown socrático sin mensaje genérico plano
+      const exName = activeExercise?.nombre || 'este ejercicio';
+      const fallbackReply = `### 💡 Tutoría de **${exName}**
+
+Recuerda los 3 filtros innegociables de **Moulinette**:
+1. **Filtro de Entrada**: Verifica \`argc\` al inicio. Si no es el esperado, escribe solo \`write(1, "\\n", 1);\` y retorna 0.
+2. **Límites de Memoria**: Comprueba siempre el terminador nulo \`'\\0'\` para evitar Segfaults.
+3. **Funciones Permitidas**: Respeta estrictamente lo que pide el subject sin incluir librerías no autorizadas.
+
+❓ **Dime**: ¿En qué paso exacto del bucle o condición tienes dudas para resolverlo juntos?`;
+
       setMessages((prev) => [
         ...prev,
         {
           role: 'model',
-          text: `⚠️ **Profesor 42**: Hubo un detalle de conexión, pero aquí tienes una guía clave:\n\nPara **${activeExercise?.nombre || 'este ejercicio'}**, revisa siempre que:\n1. Filtres \`argc == 2\` para evitar Segfaults al inicio.\n2. Verifiques el byte nulo \`'\\0'\` en cada bucle.\n3. Imprimas un salto de línea \`\\n\` final obligatorio para Moulinette.`,
+          text: fallbackReply,
           timestamp: Date.now(),
         },
       ]);
@@ -124,22 +137,22 @@ export default function GlobalAiTutorDrawer() {
     {
       label: 'Explicar lógica',
       icon: <Lightbulb size={12} className="text-amber-500" />,
-      prompt: `Tutor, explícame paso a paso cómo razonar la lógica de ${activeExercise ? activeExercise.nombre : 'este ejercicio'} sin darme la solución directa.`,
+      prompt: `Profesor, explícame paso a paso cómo razonar la lógica de ${activeExercise ? activeExercise.nombre : 'este ejercicio'} sin darme el código completo.`,
     },
     {
       label: '¿Por qué da Segfault?',
       icon: <AlertTriangle size={12} className="text-red-500" />,
-      prompt: `Tutor, ¿cuáles son los errores de memoria y causas típicas de Segfault en ${activeExercise ? activeExercise.nombre : 'los exámenes de C'}?`,
+      prompt: `Profesor, ¿cuáles son las causas más probables de Segfault en ${activeExercise ? activeExercise.nombre : 'los exámenes de C'}?`,
     },
     {
       label: 'Mnemotecnia y Palacio',
       icon: <BookOpen size={12} className="text-purple-500" />,
-      prompt: `Tutor, ¿cómo me ayuda el método Campayo y el palacio de la memoria a recordar la estructura de ${activeExercise ? activeExercise.nombre : 'este ejercicio'}?`,
+      prompt: `Profesor, ¿cómo uso el palacio de la memoria para recordar el algoritmo de ${activeExercise ? activeExercise.nombre : 'este ejercicio'}?`,
     },
     {
-      label: 'Caso de Test Trampa',
+      label: 'Caso trampa Moulinette',
       icon: <Zap size={12} className="text-sky-500" />,
-      prompt: `Tutor, dame un caso de prueba extremo o trampa que Moulinette suele usar para ${activeExercise ? activeExercise.nombre : 'evaluar este ejercicio'}.`,
+      prompt: `Profesor, dame un caso de prueba extremo o trampa que Moulinette probará en ${activeExercise ? activeExercise.nombre : 'este ejercicio'}.`,
     },
   ];
 
@@ -183,7 +196,7 @@ export default function GlobalAiTutorDrawer() {
               'fixed z-50 bg-white rounded-3xl shadow-2xl border border-zinc-200/80 flex flex-col overflow-hidden',
               isExpanded
                 ? 'inset-4 md:inset-10'
-                : 'bottom-20 right-4 sm:right-6 w-[94vw] sm:w-[460px] h-[600px] max-h-[82vh]'
+                : 'bottom-20 right-4 sm:right-6 w-[94vw] sm:w-[480px] h-[620px] max-h-[84vh]'
             )}
           >
             {/* Header */}
@@ -195,8 +208,8 @@ export default function GlobalAiTutorDrawer() {
                 <div>
                   <div className="flex items-center gap-2">
                     <h3 className="font-bold text-sm text-zinc-100">Profesor 42</h3>
-                    <span className="px-2 py-0.5 text-[10px] bg-purple-500/30 text-purple-300 rounded-full font-medium">
-                      Tutor Socrático
+                    <span className="px-2 py-0.5 text-[10px] bg-purple-500/30 text-purple-300 rounded-full font-bold uppercase tracking-wider">
+                      Exigente &amp; Socrático
                     </span>
                   </div>
                   <p className="text-[11px] text-zinc-400">
@@ -236,7 +249,7 @@ export default function GlobalAiTutorDrawer() {
             <div className="bg-zinc-50 px-4 py-2 border-b border-zinc-200 flex items-center justify-between text-xs shrink-0">
               <span className="text-zinc-500 font-medium flex items-center gap-1.5">
                 <Code2 size={13} className="text-purple-600" />
-                Ejercicio enfocado:
+                Ejercicio activo:
               </span>
               <select
                 value={selectedExerciseId}
@@ -246,7 +259,7 @@ export default function GlobalAiTutorDrawer() {
                 <option value="">General (Todos los ejercicios)</option>
                 {allExercises.map((ex) => (
                   <option key={ex.id} value={ex.id}>
-                    N{ex.nivel} - {ex.nombre}
+                    N{ex.nivel} · {ex.nombre} ({ex.tipoEntrega})
                   </option>
                 ))}
               </select>
@@ -260,15 +273,15 @@ export default function GlobalAiTutorDrawer() {
                     <Sparkles size={30} />
                   </div>
                   <div>
-                    <h4 className="font-bold text-zinc-800 text-sm">¡Hola, cadete!</h4>
+                    <h4 className="font-bold text-zinc-800 text-sm">¡A estudiar, cadete!</h4>
                     <p className="text-xs text-zinc-500 mt-1 leading-relaxed">
-                      Soy tu tutor pedagógico para el examen de 42. Pregúntame sobre algoritmos, punteros en C, cómo evitar Segfaults o cómo memorizar la estructura de cualquier ejercicio.
+                      Soy el Profesor 42. No esperes código regalado; te enseñaré a pensar como un ingeniero para pasar la Moulinette al 100%. Pregúntame dudas de punteros, lógica o qué trampa tiene tu ejercicio.
                     </p>
                   </div>
 
                   <div className="w-full space-y-1.5 pt-2 text-left">
                     <p className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider px-1">
-                      Preguntas sugeridas:
+                      Preguntas rápidas de entrenamiento:
                     </p>
                     {quickPrompts.map((qp, i) => (
                       <button
@@ -293,7 +306,7 @@ export default function GlobalAiTutorDrawer() {
                       >
                         <div
                           className={clsx(
-                            'max-w-[88%] rounded-2xl px-4 py-3 text-xs leading-relaxed shadow-sm space-y-1.5',
+                            'max-w-[90%] rounded-2xl px-4 py-3 text-xs leading-relaxed shadow-sm space-y-1.5',
                             isUser
                               ? 'bg-zinc-900 text-white rounded-tr-none'
                               : 'bg-white border border-zinc-200 text-zinc-800 rounded-tl-none'
@@ -304,8 +317,30 @@ export default function GlobalAiTutorDrawer() {
                               <Bot size={13} /> Profesor 42
                             </div>
                           )}
-                          <div className="whitespace-pre-wrap break-words prose prose-zinc prose-sm">
-                            {msg.text}
+                          <div className="markdown-body text-xs leading-relaxed overflow-x-auto">
+                            <ReactMarkdown
+                              remarkPlugins={[remarkGfm]}
+                              components={{
+                                p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+                                ul: ({ children }) => <ul className="list-disc pl-4 mb-2 space-y-1">{children}</ul>,
+                                ol: ({ children }) => <ol className="list-decimal pl-4 mb-2 space-y-1">{children}</ol>,
+                                li: ({ children }) => <li className="text-zinc-700">{children}</li>,
+                                h3: ({ children }) => <h3 className="font-bold text-zinc-900 text-sm mt-2 mb-1">{children}</h3>,
+                                code: ({ inline, className, children, ...props }) => {
+                                  return inline ? (
+                                    <code className="bg-zinc-100 text-purple-700 px-1 py-0.5 rounded font-mono text-[11px] font-semibold border border-zinc-200" {...props}>
+                                      {children}
+                                    </code>
+                                  ) : (
+                                    <pre className="bg-zinc-900 text-emerald-400 p-2.5 rounded-xl font-mono text-[11px] my-2 overflow-x-auto border border-zinc-800">
+                                      <code>{children}</code>
+                                    </pre>
+                                  );
+                                }
+                              }}
+                            >
+                              {msg.text}
+                            </ReactMarkdown>
                           </div>
                         </div>
                       </div>
@@ -316,7 +351,7 @@ export default function GlobalAiTutorDrawer() {
                     <div className="flex items-start">
                       <div className="bg-white border border-zinc-200 rounded-2xl rounded-tl-none px-4 py-3 text-xs text-zinc-500 shadow-sm flex items-center gap-2">
                         <Sparkles size={14} className="text-purple-600 animate-spin" />
-                        <span>Razonando respuesta socrática...</span>
+                        <span>Analizando con criterio de Moulinette...</span>
                       </div>
                     </div>
                   )}
@@ -356,7 +391,7 @@ export default function GlobalAiTutorDrawer() {
                   onChange={(e) => setInput(e.target.value)}
                   placeholder={
                     activeExercise
-                      ? `Pregunta sobre ${activeExercise.nombre}...`
+                      ? `Pregunta sobre ${activeExercise.nombre} o tu código...`
                       : 'Pregunta al Profesor 42...'
                   }
                   disabled={isLoading}
