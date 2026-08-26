@@ -31,6 +31,13 @@ export default function BitSwitches3D({ initialValue = 42 }) {
     setByteVal(r & 0xff)
   }
 
+  const rendererRef = useRef(null)
+  const sceneRef = useRef(null)
+  const cameraRef = useRef(null)
+  const switchesGroupRef = useRef(null)
+  const textSpritesRef = useRef([])
+  const lightPointsRef = useRef([])
+
   useEffect(() => {
     const container = mountRef.current
     if (!container) return
@@ -41,16 +48,19 @@ export default function BitSwitches3D({ initialValue = 42 }) {
     // 1. Escena
     const scene = new THREE.Scene()
     scene.background = new THREE.Color(0x11111b) // Dark cybernetic
+    sceneRef.current = scene
 
     // 2. Cámara
     const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000)
     camera.position.set(0, 4.5, 7.5)
     camera.lookAt(0, 0, 0)
+    cameraRef.current = camera
 
     // 3. Renderer
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'low-power' })
     renderer.setSize(width, height)
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+    rendererRef.current = renderer
     container.innerHTML = ''
     container.appendChild(renderer.domElement)
 
@@ -69,13 +79,92 @@ export default function BitSwitches3D({ initialValue = 42 }) {
     baseMesh.position.y = -0.2
     scene.add(baseMesh)
 
-    // 6. Construir los 8 interruptores 3D (Cilindros con LED en la punta)
-    const switchMeshes = []
-    const lightPoints = []
+    const switchesGroup = new THREE.Group()
+    scene.add(switchesGroup)
+    switchesGroupRef.current = switchesGroup
+
+    // 7. Raycaster para click en los interruptores 3D
+    const raycaster = new THREE.Raycaster()
+    const mouse = new THREE.Vector2()
+
+    const onPointerDown = (event) => {
+      const rect = renderer.domElement.getBoundingClientRect()
+      mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1
+      mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1
+
+      raycaster.setFromCamera(mouse, camera)
+      const intersects = raycaster.intersectObjects(scene.children, true)
+      for (const hit of intersects) {
+        let p = hit.object.parent
+        while (p && p !== scene) {
+          if (p.userData && typeof p.userData.bitIndex === 'number') {
+            toggleBit(p.userData.bitIndex)
+            return
+          }
+          p = p.parent
+        }
+      }
+    }
+
+    renderer.domElement.addEventListener('pointerdown', onPointerDown)
+
+    // 8. Render loop
+    let animationFrameId
+    const startTime = performance.now()
+
+    const animate = () => {
+      animationFrameId = requestAnimationFrame(animate)
+      const t = (performance.now() - startTime) * 0.001
+      lightPointsRef.current.forEach((lp) => {
+        lp.intensity = 1.0 + Math.sin(t * 6) * 0.2
+      })
+      renderer.render(scene, camera)
+    }
+    animate()
+
+    const handleResize = () => {
+      if (!container || !rendererRef.current) return
+      const w = container.clientWidth
+      const h = container.clientHeight
+      camera.aspect = w / h
+      camera.updateProjectionMatrix()
+      renderer.setSize(w, h)
+    }
+
+    window.addEventListener('resize', handleResize)
+
+    return () => {
+      cancelAnimationFrame(animationFrameId)
+      window.removeEventListener('resize', handleResize)
+      renderer.domElement.removeEventListener('pointerdown', onPointerDown)
+      textSpritesRef.current.forEach((t) => t.dispose())
+      if (rendererRef.current) {
+        rendererRef.current.dispose()
+        rendererRef.current.forceContextLoss()
+      }
+      if (container) {
+        container.innerHTML = ''
+      }
+    }
+  }, [])
+
+  // Actualizar interruptores sin destruir el WebGLRenderer
+  useEffect(() => {
+    const switchesGroup = switchesGroupRef.current
+    if (!switchesGroup) return
+
+    textSpritesRef.current.forEach((t) => t.dispose())
+    textSpritesRef.current = []
+    lightPointsRef.current = []
+
+    while (switchesGroup.children.length > 0) {
+      const obj = switchesGroup.children[0]
+      if (obj.geometry) obj.geometry.dispose()
+      switchesGroup.remove(obj)
+    }
+
     const spacing = 1.25
     const startX = -((8 - 1) * spacing) / 2
-
-    const textSprites = []
 
     bits.forEach((bit, i) => {
       const x = startX + i * spacing
@@ -117,10 +206,10 @@ export default function BitSwitches3D({ initialValue = 42 }) {
         const pLight = new THREE.PointLight(0x22c55e, 1.2, 3)
         pLight.position.set(0, 1.2, 0)
         group.add(pLight)
-        lightPoints.push(pLight)
+        lightPointsRef.current.push(pLight)
       }
 
-      // Sprite con valor y peso (ej: 128, 64, 32...)
+      // Sprite con valor y peso
       const canvas = document.createElement('canvas')
       canvas.width = 128
       canvas.height = 96
@@ -137,7 +226,7 @@ export default function BitSwitches3D({ initialValue = 42 }) {
       ctx.fillText(`(${bitWeight})`, 64, 86)
 
       const texture = new THREE.CanvasTexture(canvas)
-      textSprites.push(texture)
+      textSpritesRef.current.push(texture)
       const spriteMat = new THREE.SpriteMaterial({ map: texture })
       const sprite = new THREE.Sprite(spriteMat)
       sprite.position.set(0, 1.8, 0)
@@ -145,72 +234,8 @@ export default function BitSwitches3D({ initialValue = 42 }) {
       group.add(sprite)
 
       group.userData = { bitIndex: i }
-      scene.add(group)
-      switchMeshes.push(bulb)
+      switchesGroup.add(group)
     })
-
-    // 7. Raycaster para click en los interruptores 3D
-    const raycaster = new THREE.Raycaster()
-    const mouse = new THREE.Vector2()
-
-    const onPointerDown = (event) => {
-      const rect = renderer.domElement.getBoundingClientRect()
-      mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1
-      mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1
-
-      raycaster.setFromCamera(mouse, camera)
-      // Buscar en los grupos
-      const intersects = raycaster.intersectObjects(scene.children, true)
-      for (const hit of intersects) {
-        let p = hit.object.parent
-        while (p && p !== scene) {
-          if (p.userData && typeof p.userData.bitIndex === 'number') {
-            toggleBit(p.userData.bitIndex)
-            return
-          }
-          p = p.parent
-        }
-      }
-    }
-
-    renderer.domElement.addEventListener('pointerdown', onPointerDown)
-
-    // 8. Render loop
-    let animationFrameId
-    let clock = new THREE.Clock()
-
-    const animate = () => {
-      animationFrameId = requestAnimationFrame(animate)
-      const t = clock.getElapsedTime()
-      // Suave oscilación de las luces
-      lightPoints.forEach((lp) => {
-        lp.intensity = 1.0 + Math.sin(t * 6) * 0.2
-      })
-      renderer.render(scene, camera)
-    }
-    animate()
-
-    const handleResize = () => {
-      if (!container) return
-      const w = container.clientWidth
-      const h = container.clientHeight
-      camera.aspect = w / h
-      camera.updateProjectionMatrix()
-      renderer.setSize(w, h)
-    }
-
-    window.addEventListener('resize', handleResize)
-
-    return () => {
-      cancelAnimationFrame(animationFrameId)
-      window.removeEventListener('resize', handleResize)
-      renderer.domElement.removeEventListener('pointerdown', onPointerDown)
-      textSprites.forEach((t) => t.dispose())
-      renderer.dispose()
-      if (container.contains(renderer.domElement)) {
-        container.removeChild(renderer.domElement)
-      }
-    }
   }, [byteVal])
 
   return (

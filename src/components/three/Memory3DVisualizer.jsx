@@ -83,6 +83,12 @@ export default function Memory3DVisualizer({ initialType = 'string', initialText
     })
   }
 
+  const rendererRef = useRef(null)
+  const blocksGroupRef = useRef(null)
+  const pointerGroupRef = useRef(null)
+  const textCanvasesRef = useRef([])
+  const blockMeshesRef = useRef([])
+
   useEffect(() => {
     const container = mountRef.current
     if (!container) return
@@ -100,10 +106,11 @@ export default function Memory3DVisualizer({ initialType = 'string', initialText
     camera.lookAt(0, 0, 0)
 
     // 3. Renderer
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'low-power' })
     renderer.setSize(width, height)
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
     renderer.shadowMap.enabled = true
+    rendererRef.current = renderer
     container.innerHTML = ''
     container.appendChild(renderer.domElement)
 
@@ -125,70 +132,9 @@ export default function Memory3DVisualizer({ initialType = 'string', initialText
     gridHelper.position.y = -0.5
     scene.add(gridHelper)
 
-    // 6. Construir bloques 3D para cada celda
-    const blockMeshes = []
-    const count = cellsData.length
-    const spacing = 1.4
-    const startX = -((count - 1) * spacing) / 2
-
-    const textCanvases = []
-
-    cellsData.forEach((cell, i) => {
-      const xPos = startX + i * spacing
-
-      // Geometría del bloque
-      const boxGeo = new THREE.BoxGeometry(1.1, 0.8, 1.1)
-      
-      // Color según si es null terminator o celda normal
-      const isNull = cell.val === "'\\0'"
-      const isSelected = selectedCell?.address === cell.address
-      const isPointed = i === pointerOffset
-
-      let color = 0x3b82f6 // Azul base
-      if (isNull) color = 0xef4444 // Rojo centinela
-      else if (isPointed) color = 0x10b981 // Verde puntero
-      else if (cell.isSpecial) color = 0x8b5cf6 // Púrpura
-
-      const mat = new THREE.MeshStandardMaterial({
-        color: color,
-        metalness: 0.2,
-        roughness: 0.3,
-        emissive: isPointed ? 0x065f46 : isSelected ? 0x1e3a8a : 0x000000,
-        emissiveIntensity: 0.5,
-      })
-
-      const mesh = new THREE.Mesh(boxGeo, mat)
-      mesh.position.set(xPos, 0, 0)
-      mesh.castShadow = true
-      mesh.receiveShadow = true
-      mesh.userData = { index: i, cellData: cell }
-      scene.add(mesh)
-      blockMeshes.push(mesh)
-
-      // Texto flotante 3D usando Sprite / Canvas Texture
-      const canvas = document.createElement('canvas')
-      canvas.width = 256
-      canvas.height = 128
-      const ctx = canvas.getContext('2d')
-      ctx.fillStyle = isNull ? '#ef4444' : isPointed ? '#10b981' : '#ffffff'
-      ctx.font = 'bold 36px monospace'
-      ctx.textAlign = 'center'
-      ctx.fillText(cell.val, 128, 50)
-      ctx.font = '22px monospace'
-      ctx.fillStyle = '#a1a1aa'
-      ctx.fillText(cell.name, 128, 85)
-      ctx.font = '18px monospace'
-      ctx.fillStyle = '#60a5fa'
-      ctx.fillText(cell.address, 128, 115)
-
-      const texture = new THREE.CanvasTexture(canvas)
-      textCanvases.push(texture)
-      const spriteMat = new THREE.SpriteMaterial({ map: texture })
-      const sprite = new THREE.Sprite(spriteMat)
-      sprite.position.set(xPos, 0.9, 0)
-      sprite.scale.set(1.5, 0.75, 1)
-      scene.add(sprite)
-    })
+    const blocksGroup = new THREE.Group()
+    scene.add(blocksGroup)
+    blocksGroupRef.current = blocksGroup
 
     // 7. Flecha 3D de Puntero (Pointer Arrow)
     const pointerGroup = new THREE.Group()
@@ -215,6 +161,7 @@ export default function Memory3DVisualizer({ initialType = 'string', initialText
     pCtx.textAlign = 'center'
     pCtx.fillText('*ptr', 128, 50)
     const pTexture = new THREE.CanvasTexture(pCanvas)
+    textCanvasesRef.current.push(pTexture)
     const pSpriteMat = new THREE.SpriteMaterial({ map: pTexture })
     const pSprite = new THREE.Sprite(pSpriteMat)
     pSprite.position.set(0, 2.7, 0)
@@ -222,9 +169,7 @@ export default function Memory3DVisualizer({ initialType = 'string', initialText
     pointerGroup.add(pSprite)
 
     scene.add(pointerGroup)
-
-    const targetX = startX + pointerOffset * spacing
-    pointerGroup.position.set(targetX, 0, 0)
+    pointerGroupRef.current = pointerGroup
 
     // 8. Raycaster para hacer clic e interactuar con celdas 3D
     const raycaster = new THREE.Raycaster()
@@ -236,7 +181,7 @@ export default function Memory3DVisualizer({ initialType = 'string', initialText
       mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1
 
       raycaster.setFromCamera(mouse, camera)
-      const intersects = raycaster.intersectObjects(blockMeshes)
+      const intersects = raycaster.intersectObjects(blockMeshesRef.current)
       if (intersects.length > 0) {
         const hit = intersects[0].object
         setSelectedCell(hit.userData.cellData)
@@ -248,24 +193,15 @@ export default function Memory3DVisualizer({ initialType = 'string', initialText
 
     // 9. Loop de animación
     let animationFrameId
-    let clock = new THREE.Clock()
+    const startTime = performance.now()
 
     const animate = () => {
       animationFrameId = requestAnimationFrame(animate)
-      const elapsed = clock.getElapsedTime()
+      const elapsed = (performance.now() - startTime) * 0.001
 
-      // Suave flotación de la flecha del puntero
-      pointerGroup.position.x += (targetX - pointerGroup.position.x) * 0.15
-      pointerGroup.position.y = Math.sin(elapsed * 4) * 0.08
-
-      // Suave rotación de los bloques para darle vida
-      blockMeshes.forEach((mesh, idx) => {
-        if (idx === pointerOffset) {
-          mesh.scale.set(1.08, 1.15, 1.08)
-        } else {
-          mesh.scale.set(1, 1, 1)
-        }
-      })
+      if (pointerGroupRef.current) {
+        pointerGroupRef.current.position.y = Math.sin(elapsed * 4) * 0.08
+      }
 
       renderer.render(scene, camera)
     }
@@ -274,7 +210,7 @@ export default function Memory3DVisualizer({ initialType = 'string', initialText
 
     // 10. Resize handler
     const handleResize = () => {
-      if (!container) return
+      if (!container || !rendererRef.current) return
       const w = container.clientWidth
       const h = container.clientHeight
       camera.aspect = w / h
@@ -288,12 +224,91 @@ export default function Memory3DVisualizer({ initialType = 'string', initialText
       cancelAnimationFrame(animationFrameId)
       window.removeEventListener('resize', handleResize)
       renderer.domElement.removeEventListener('pointerdown', onPointerDown)
-      textCanvases.forEach((t) => t.dispose())
-      pTexture.dispose()
-      renderer.dispose()
-      if (container.contains(renderer.domElement)) {
-        container.removeChild(renderer.domElement)
+      textCanvasesRef.current.forEach((t) => t.dispose())
+      if (rendererRef.current) {
+        rendererRef.current.dispose()
+        rendererRef.current.forceContextLoss()
       }
+      if (container) {
+        container.innerHTML = ''
+      }
+    }
+  }, [])
+
+  // Update 3D cells and pointer without destroying WebGL context
+  useEffect(() => {
+    const blocksGroup = blocksGroupRef.current
+    if (!blocksGroup) return
+
+    while (blocksGroup.children.length > 0) {
+      const obj = blocksGroup.children[0]
+      if (obj.geometry) obj.geometry.dispose()
+      blocksGroup.remove(obj)
+    }
+
+    blockMeshesRef.current = []
+    const count = cellsData.length
+    const spacing = 1.4
+    const startX = -((count - 1) * spacing) / 2
+
+    cellsData.forEach((cell, i) => {
+      const xPos = startX + i * spacing
+      const boxGeo = new THREE.BoxGeometry(1.1, 0.8, 1.1)
+      const isNull = cell.val === "'\\0'"
+      const isSelected = selectedCell?.address === cell.address
+      const isPointed = i === pointerOffset
+
+      let color = 0x3b82f6 // Azul base
+      if (isNull) color = 0xef4444 // Rojo centinela
+      else if (isPointed) color = 0x10b981 // Verde puntero
+      else if (cell.isSpecial) color = 0x8b5cf6 // Púrpura
+
+      const mat = new THREE.MeshStandardMaterial({
+        color: color,
+        metalness: 0.2,
+        roughness: 0.3,
+        emissive: isPointed ? 0x065f46 : isSelected ? 0x1e3a8a : 0x000000,
+        emissiveIntensity: 0.5,
+      })
+
+      const mesh = new THREE.Mesh(boxGeo, mat)
+      mesh.position.set(xPos, 0, 0)
+      mesh.castShadow = true
+      mesh.receiveShadow = true
+      mesh.userData = { index: i, cellData: cell }
+      if (isPointed) {
+        mesh.scale.set(1.08, 1.15, 1.08)
+      }
+      blocksGroup.add(mesh)
+      blockMeshesRef.current.push(mesh)
+
+      const canvas = document.createElement('canvas')
+      canvas.width = 256
+      canvas.height = 128
+      const ctx = canvas.getContext('2d')
+      ctx.fillStyle = isNull ? '#ef4444' : isPointed ? '#10b981' : '#ffffff'
+      ctx.font = 'bold 36px monospace'
+      ctx.textAlign = 'center'
+      ctx.fillText(cell.val, 128, 50)
+      ctx.font = '22px monospace'
+      ctx.fillStyle = '#a1a1aa'
+      ctx.fillText(cell.name, 128, 85)
+      ctx.font = '18px monospace'
+      ctx.fillStyle = '#60a5fa'
+      ctx.fillText(cell.address, 128, 115)
+
+      const texture = new THREE.CanvasTexture(canvas)
+      textCanvasesRef.current.push(texture)
+      const spriteMat = new THREE.SpriteMaterial({ map: texture })
+      const sprite = new THREE.Sprite(spriteMat)
+      sprite.position.set(xPos, 0.9, 0)
+      sprite.scale.set(1.5, 0.75, 1)
+      blocksGroup.add(sprite)
+    })
+
+    if (pointerGroupRef.current) {
+      const targetX = startX + pointerOffset * spacing
+      pointerGroupRef.current.position.x = targetX
     }
   }, [viewMode, inputText, pointerOffset, selectedCell])
 

@@ -126,6 +126,12 @@ export default function WordScanner3D({
   }, [isPlaying, cursor, phase])
 
   // Three.js Scene: 3D Conveyor Belt of Characters
+  const sceneRef = useRef(null)
+  const rendererRef = useRef(null)
+  const beltGroupRef = useRef(null)
+  const pointerMeshRef = useRef(null)
+
+  // Initialize scene ONCE
   useEffect(() => {
     const container = mountRef.current
     if (!container) return
@@ -135,14 +141,16 @@ export default function WordScanner3D({
 
     const scene = new THREE.Scene()
     scene.background = new THREE.Color(0x11111b)
+    sceneRef.current = scene
 
     const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000)
     camera.position.set(0, 4.5, 8)
     camera.lookAt(0, 0, 0)
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'low-power' })
     renderer.setSize(width, height)
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+    rendererRef.current = renderer
     container.innerHTML = ''
     container.appendChild(renderer.domElement)
 
@@ -155,6 +163,64 @@ export default function WordScanner3D({
 
     const beltGroup = new THREE.Group()
     scene.add(beltGroup)
+    beltGroupRef.current = beltGroup
+
+    const coneGeo = new THREE.ConeGeometry(0.25, 0.6, 16)
+    coneGeo.rotateX(Math.PI)
+    const coneMat = new THREE.MeshStandardMaterial({
+      color: 0xf9e2af,
+      emissive: 0xd97706,
+      emissiveIntensity: 0.8,
+    })
+    const pointerMesh = new THREE.Mesh(coneGeo, coneMat)
+    pointerMesh.position.set(0, 1.4, 0)
+    scene.add(pointerMesh)
+    pointerMeshRef.current = pointerMesh
+
+    let reqId
+    const animate = () => {
+      reqId = requestAnimationFrame(animate)
+      if (pointerMeshRef.current) {
+        pointerMeshRef.current.position.y = 1.4 + Math.sin(Date.now() * 0.005) * 0.1
+      }
+      renderer.render(scene, camera)
+    }
+    animate()
+
+    const handleResize = () => {
+      if (!container || !rendererRef.current) return
+      const w = container.clientWidth || 600
+      const h = container.clientHeight || 250
+      camera.aspect = w / h
+      camera.updateProjectionMatrix()
+      renderer.setSize(w, h)
+    }
+    window.addEventListener('resize', handleResize)
+
+    return () => {
+      cancelAnimationFrame(reqId)
+      window.removeEventListener('resize', handleResize)
+      if (rendererRef.current) {
+        rendererRef.current.dispose()
+        rendererRef.current.forceContextLoss()
+      }
+      if (container) {
+        container.innerHTML = ''
+      }
+    }
+  }, [])
+
+  // Update meshes only when chars or cursor changes, without recreating WebGL renderer
+  useEffect(() => {
+    const beltGroup = beltGroupRef.current
+    if (!beltGroup) return
+
+    // Clear old meshes in group
+    while (beltGroup.children.length > 0) {
+      const obj = beltGroup.children[0]
+      if (obj.geometry) obj.geometry.dispose()
+      beltGroup.remove(obj)
+    }
 
     const boxGeo = new THREE.BoxGeometry(0.7, 0.7, 0.7)
     const spaceGeo = new THREE.BoxGeometry(0.5, 0.2, 0.5)
@@ -191,41 +257,9 @@ export default function WordScanner3D({
       beltGroup.add(mesh)
     }
 
-    // Scanner Pointer (Cone pointing down)
-    const coneGeo = new THREE.ConeGeometry(0.25, 0.6, 16)
-    coneGeo.rotateX(Math.PI)
-    const coneMat = new THREE.MeshStandardMaterial({
-      color: 0xf9e2af,
-      emissive: 0xd97706,
-      emissiveIntensity: 0.8,
-    })
-    const pointerMesh = new THREE.Mesh(coneGeo, coneMat)
-    const pointerX = startX + Math.min(cursor, totalChars - 1) * 0.9
-    pointerMesh.position.set(pointerX, 1.4, 0)
-    scene.add(pointerMesh)
-
-    let reqId
-    const animate = () => {
-      reqId = requestAnimationFrame(animate)
-      pointerMesh.position.y = 1.4 + Math.sin(Date.now() * 0.005) * 0.1
-      renderer.render(scene, camera)
-    }
-    animate()
-
-    const handleResize = () => {
-      if (!container) return
-      const w = container.clientWidth || 600
-      const h = container.clientHeight || 250
-      camera.aspect = w / h
-      camera.updateProjectionMatrix()
-      renderer.setSize(w, h)
-    }
-    window.addEventListener('resize', handleResize)
-
-    return () => {
-      cancelAnimationFrame(reqId)
-      window.removeEventListener('resize', handleResize)
-      renderer.dispose()
+    if (pointerMeshRef.current) {
+      const pointerX = startX + Math.min(cursor, totalChars - 1) * 0.9
+      pointerMeshRef.current.position.x = pointerX
     }
   }, [chars, cursor])
 

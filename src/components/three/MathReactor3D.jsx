@@ -96,6 +96,11 @@ export default function MathReactor3D({
   }, [isPlaying, currentValue, divisor, factors])
 
   // Three.js 3D Reactor Scene
+  const rendererRef = useRef(null)
+  const reactorGroupRef = useRef(null)
+  const factorGroupRef = useRef(null)
+  const coreMeshRef = useRef(null)
+
   useEffect(() => {
     const container = mountRef.current
     if (!container) return
@@ -110,9 +115,10 @@ export default function MathReactor3D({
     camera.position.set(0, 4.5, 7.5)
     camera.lookAt(0, 0, 0)
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'low-power' })
     renderer.setSize(width, height)
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+    rendererRef.current = renderer
     container.innerHTML = ''
     container.appendChild(renderer.domElement)
 
@@ -125,6 +131,7 @@ export default function MathReactor3D({
 
     const reactorGroup = new THREE.Group()
     scene.add(reactorGroup)
+    reactorGroupRef.current = reactorGroup
 
     // Central Sphere (Core Number)
     const coreGeo = new THREE.SphereGeometry(1.2, 32, 32)
@@ -137,27 +144,13 @@ export default function MathReactor3D({
       wireframe: false,
     })
     const coreMesh = new THREE.Mesh(coreGeo, coreMat)
-    const scaleNorm = Math.max(0.6, Math.min(1.8, currentValue / (numA || 1)))
-    coreMesh.scale.set(scaleNorm, scaleNorm, scaleNorm)
     reactorGroup.add(coreMesh)
+    coreMeshRef.current = coreMesh
 
     // Orbiting Rings / Factor Crystals
     const factorGroup = new THREE.Group()
     reactorGroup.add(factorGroup)
-
-    factors.forEach((f, idx) => {
-      const crystalGeo = new THREE.OctahedronGeometry(0.35)
-      const crystalMat = new THREE.MeshStandardMaterial({
-        color: 0xa6e3a1,
-        emissive: 0x14532d,
-        emissiveIntensity: 0.8,
-        metalness: 0.5,
-      })
-      const mesh = new THREE.Mesh(crystalGeo, crystalMat)
-      const angle = (idx / Math.max(factors.length, 1)) * Math.PI * 2
-      mesh.position.set(Math.cos(angle) * 2.3, Math.sin(idx * 0.5) * 0.4, Math.sin(angle) * 2.3)
-      factorGroup.add(mesh)
-    })
+    factorGroupRef.current = factorGroup
 
     // Divisor Ring
     const ringGeo = new THREE.TorusGeometry(2.4, 0.04, 16, 100)
@@ -173,14 +166,18 @@ export default function MathReactor3D({
     let reqId
     const animate = () => {
       reqId = requestAnimationFrame(animate)
-      reactorGroup.rotation.y += 0.01
-      factorGroup.rotation.y -= 0.02
+      if (reactorGroupRef.current) {
+        reactorGroupRef.current.rotation.y += 0.01
+      }
+      if (factorGroupRef.current) {
+        factorGroupRef.current.rotation.y -= 0.02
+      }
       renderer.render(scene, camera)
     }
     animate()
 
     const handleResize = () => {
-      if (!container) return
+      if (!container || !rendererRef.current) return
       const w = container.clientWidth || 600
       const h = container.clientHeight || 240
       camera.aspect = w / h
@@ -192,8 +189,45 @@ export default function MathReactor3D({
     return () => {
       cancelAnimationFrame(reqId)
       window.removeEventListener('resize', handleResize)
-      renderer.dispose()
+      if (rendererRef.current) {
+        rendererRef.current.dispose()
+        rendererRef.current.forceContextLoss()
+      }
+      if (container) {
+        container.innerHTML = ''
+      }
     }
+  }, [])
+
+  // Update scale and factors without recreating WebGL canvas
+  useEffect(() => {
+    if (coreMeshRef.current) {
+      const scaleNorm = Math.max(0.6, Math.min(1.8, currentValue / (numA || 1)))
+      coreMeshRef.current.scale.set(scaleNorm, scaleNorm, scaleNorm)
+    }
+
+    const factorGroup = factorGroupRef.current
+    if (!factorGroup) return
+
+    while (factorGroup.children.length > 0) {
+      const obj = factorGroup.children[0]
+      if (obj.geometry) obj.geometry.dispose()
+      factorGroup.remove(obj)
+    }
+
+    factors.forEach((f, idx) => {
+      const crystalGeo = new THREE.OctahedronGeometry(0.35)
+      const crystalMat = new THREE.MeshStandardMaterial({
+        color: 0xa6e3a1,
+        emissive: 0x14532d,
+        emissiveIntensity: 0.8,
+        metalness: 0.5,
+      })
+      const mesh = new THREE.Mesh(crystalGeo, crystalMat)
+      const angle = (idx / Math.max(factors.length, 1)) * Math.PI * 2
+      mesh.position.set(Math.cos(angle) * 2.3, Math.sin(idx * 0.5) * 0.4, Math.sin(angle) * 2.3)
+      factorGroup.add(mesh)
+    })
   }, [currentValue, factors, numA])
 
   return (

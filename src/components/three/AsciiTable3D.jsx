@@ -135,6 +135,9 @@ export default function AsciiTable3D({
   }, [isPlaying, cursor1, cursor2, seenTable])
 
   // Three.js 3D Rack de ASCII Slots
+  const rendererRef = useRef(null)
+  const rackGroupRef = useRef(null)
+
   useEffect(() => {
     const container = mountRef.current
     if (!container) return
@@ -149,9 +152,10 @@ export default function AsciiTable3D({
     camera.position.set(0, 5, 8.5)
     camera.lookAt(0, 0, 0)
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'low-power' })
     renderer.setSize(width, height)
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+    rendererRef.current = renderer
     container.innerHTML = ''
     container.appendChild(renderer.domElement)
 
@@ -164,8 +168,52 @@ export default function AsciiTable3D({
 
     const rackGroup = new THREE.Group()
     scene.add(rackGroup)
+    rackGroupRef.current = rackGroup
 
-    // Renderizamos los caracteres ASCII relevantes del alfabeto (97 a 122 -> 'a' a 'z')
+    let reqId
+    const animate = () => {
+      reqId = requestAnimationFrame(animate)
+      if (rackGroupRef.current) {
+        rackGroupRef.current.rotation.y = Math.sin(Date.now() * 0.0006) * 0.05
+      }
+      renderer.render(scene, camera)
+    }
+    animate()
+
+    const handleResize = () => {
+      if (!container || !rendererRef.current) return
+      const w = container.clientWidth || 600
+      const h = container.clientHeight || 260
+      camera.aspect = w / h
+      camera.updateProjectionMatrix()
+      renderer.setSize(w, h)
+    }
+    window.addEventListener('resize', handleResize)
+
+    return () => {
+      cancelAnimationFrame(reqId)
+      window.removeEventListener('resize', handleResize)
+      if (rendererRef.current) {
+        rendererRef.current.dispose()
+        rendererRef.current.forceContextLoss()
+      }
+      if (container) {
+        container.innerHTML = ''
+      }
+    }
+  }, [])
+
+  // Update mesh boxes on seenTable update
+  useEffect(() => {
+    const rackGroup = rackGroupRef.current
+    if (!rackGroup) return
+
+    while (rackGroup.children.length > 0) {
+      const obj = rackGroup.children[0]
+      if (obj.geometry) obj.geometry.dispose()
+      rackGroup.remove(obj)
+    }
+
     const startChar = 97
     const count = 26
     const colsPerRow = 13
@@ -206,30 +254,6 @@ export default function AsciiTable3D({
       mesh.position.set(col * 0.75 - (colsPerRow * 0.75) / 2 + 0.37, (height * 0.4) / 2, row * 1.0 - 0.5)
       mesh.scale.set(1, height, 1)
       rackGroup.add(mesh)
-    }
-
-    let reqId
-    const animate = () => {
-      reqId = requestAnimationFrame(animate)
-      rackGroup.rotation.y = Math.sin(Date.now() * 0.0006) * 0.05
-      renderer.render(scene, camera)
-    }
-    animate()
-
-    const handleResize = () => {
-      if (!container) return
-      const w = container.clientWidth || 600
-      const h = container.clientHeight || 260
-      camera.aspect = w / h
-      camera.updateProjectionMatrix()
-      renderer.setSize(w, h)
-    }
-    window.addEventListener('resize', handleResize)
-
-    return () => {
-      cancelAnimationFrame(reqId)
-      window.removeEventListener('resize', handleResize)
-      renderer.dispose()
     }
   }, [seenTable])
 

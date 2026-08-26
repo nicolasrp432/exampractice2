@@ -97,6 +97,9 @@ export default function ArrayBars3D({
   }, [isPlaying, iIdx, jIdx, array])
 
   // Three.js 3D Bar Chart
+  const rendererRef = useRef(null)
+  const barGroupRef = useRef(null)
+
   useEffect(() => {
     const container = mountRef.current
     if (!container) return
@@ -111,9 +114,10 @@ export default function ArrayBars3D({
     camera.position.set(0, 5, 8.5)
     camera.lookAt(0, 0, 0)
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'low-power' })
     renderer.setSize(width, height)
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+    rendererRef.current = renderer
     container.innerHTML = ''
     container.appendChild(renderer.domElement)
 
@@ -126,6 +130,51 @@ export default function ArrayBars3D({
 
     const barGroup = new THREE.Group()
     scene.add(barGroup)
+    barGroupRef.current = barGroup
+
+    let reqId
+    const animate = () => {
+      reqId = requestAnimationFrame(animate)
+      if (barGroupRef.current) {
+        barGroupRef.current.rotation.y = Math.sin(Date.now() * 0.0005) * 0.06
+      }
+      renderer.render(scene, camera)
+    }
+    animate()
+
+    const handleResize = () => {
+      if (!container || !rendererRef.current) return
+      const w = container.clientWidth || 600
+      const h = container.clientHeight || 240
+      camera.aspect = w / h
+      camera.updateProjectionMatrix()
+      renderer.setSize(w, h)
+    }
+    window.addEventListener('resize', handleResize)
+
+    return () => {
+      cancelAnimationFrame(reqId)
+      window.removeEventListener('resize', handleResize)
+      if (rendererRef.current) {
+        rendererRef.current.dispose()
+        rendererRef.current.forceContextLoss()
+      }
+      if (container) {
+        container.innerHTML = ''
+      }
+    }
+  }, [])
+
+  // Update bars without recreating WebGL canvas
+  useEffect(() => {
+    const barGroup = barGroupRef.current
+    if (!barGroup) return
+
+    while (barGroup.children.length > 0) {
+      const obj = barGroup.children[0]
+      if (obj.geometry) obj.geometry.dispose()
+      barGroup.remove(obj)
+    }
 
     const maxAbs = Math.max(...array.map(Math.abs), 1)
     const count = array.length
@@ -156,31 +205,7 @@ export default function ArrayBars3D({
       mesh.position.set(startX + idx * 0.7, height / 2, 0)
       barGroup.add(mesh)
     })
-
-    let reqId
-    const animate = () => {
-      reqId = requestAnimationFrame(animate)
-      barGroup.rotation.y = Math.sin(Date.now() * 0.0005) * 0.06
-      renderer.render(scene, camera)
-    }
-    animate()
-
-    const handleResize = () => {
-      if (!container) return
-      const w = container.clientWidth || 600
-      const h = container.clientHeight || 240
-      camera.aspect = w / h
-      camera.updateProjectionMatrix()
-      renderer.setSize(w, h)
-    }
-    window.addEventListener('resize', handleResize)
-
-    return () => {
-      cancelAnimationFrame(reqId)
-      window.removeEventListener('resize', handleResize)
-      renderer.dispose()
-    }
-  }, [array, iIdx, jIdx, maxVal])
+  }, [array, iIdx, jIdx, maxVal, isSort, isMax])
 
   return (
     <div className="rounded-2xl border border-zinc-200 bg-white overflow-hidden shadow-xs">

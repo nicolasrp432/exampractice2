@@ -122,6 +122,9 @@ export default function VoxelGrid3D({ initialExercise = null }) {
   }, [isRunning, stepCount])
 
   // Render Three.js Scene
+  const rendererRef = useRef(null)
+  const voxelGroupRef = useRef(null)
+
   useEffect(() => {
     const container = mountRef.current
     if (!container) return
@@ -136,9 +139,10 @@ export default function VoxelGrid3D({ initialExercise = null }) {
     camera.position.set(0, 8, 9)
     camera.lookAt(0, 0, 0)
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'low-power' })
     renderer.setSize(width, height)
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+    rendererRef.current = renderer
     container.innerHTML = ''
     container.appendChild(renderer.domElement)
 
@@ -153,10 +157,60 @@ export default function VoxelGrid3D({ initialExercise = null }) {
     // Grupo de voxeles
     const voxelGroup = new THREE.Group()
     scene.add(voxelGroup)
+    voxelGroupRef.current = voxelGroup
+
+    // Suelo de rejilla
+    const gridHelper = new THREE.GridHelper(cols * 1.2, cols, 0x45475a, 0x313244)
+    gridHelper.position.y = -0.05
+    scene.add(gridHelper)
+
+    // Animación suave de rotación leve
+    let reqId
+    const animate = () => {
+      reqId = requestAnimationFrame(animate)
+      if (voxelGroupRef.current) {
+        voxelGroupRef.current.rotation.y = Math.sin(Date.now() * 0.0005) * 0.08
+      }
+      renderer.render(scene, camera)
+    }
+    animate()
+
+    const handleResize = () => {
+      if (!container || !rendererRef.current) return
+      const w = container.clientWidth || 600
+      const h = container.clientHeight || 300
+      camera.aspect = w / h
+      camera.updateProjectionMatrix()
+      renderer.setSize(w, h)
+    }
+    window.addEventListener('resize', handleResize)
+
+    return () => {
+      cancelAnimationFrame(reqId)
+      window.removeEventListener('resize', handleResize)
+      if (rendererRef.current) {
+        rendererRef.current.dispose()
+        rendererRef.current.forceContextLoss()
+      }
+      if (container) {
+        container.innerHTML = ''
+      }
+    }
+  }, [])
+
+  // Update voxels without recreating WebGL canvas
+  useEffect(() => {
+    const voxelGroup = voxelGroupRef.current
+    if (!voxelGroup) return
+
+    while (voxelGroup.children.length > 0) {
+      const obj = voxelGroup.children[0]
+      if (obj.geometry) obj.geometry.dispose()
+      voxelGroup.remove(obj)
+    }
 
     const boxGeo = new THREE.BoxGeometry(0.85, 0.6, 0.85)
 
-    // Materiales
     const wallMat = new THREE.MeshStandardMaterial({
       color: 0x313244,
       roughness: 0.4,
@@ -203,36 +257,6 @@ export default function VoxelGrid3D({ initialExercise = null }) {
         voxelGroup.add(mesh)
       })
     })
-
-    // Suelo de rejilla
-    const gridHelper = new THREE.GridHelper(cols * 1.2, cols, 0x45475a, 0x313244)
-    gridHelper.position.y = -0.05
-    scene.add(gridHelper)
-
-    // Animación suave de rotación leve
-    let reqId
-    const animate = () => {
-      reqId = requestAnimationFrame(animate)
-      voxelGroup.rotation.y = Math.sin(Date.now() * 0.0005) * 0.08
-      renderer.render(scene, camera)
-    }
-    animate()
-
-    const handleResize = () => {
-      if (!container) return
-      const w = container.clientWidth || 600
-      const h = container.clientHeight || 300
-      camera.aspect = w / h
-      camera.updateProjectionMatrix()
-      renderer.setSize(w, h)
-    }
-    window.addEventListener('resize', handleResize)
-
-    return () => {
-      cancelAnimationFrame(reqId)
-      window.removeEventListener('resize', handleResize)
-      renderer.dispose()
-    }
   }, [grid, startPoint, fillChar])
 
   return (

@@ -56,6 +56,11 @@ export default function LinkedList3D({ initialValues = [42, 13, 7, 99] }) {
     return () => clearInterval(interval)
   }, [isTraversing, nodes.length])
 
+  const rendererRef = useRef(null)
+  const listGroupRef = useRef(null)
+  const pointerGroupRef = useRef(null)
+  const texturesRef = useRef([])
+
   useEffect(() => {
     const container = mountRef.current
     if (!container) return
@@ -70,9 +75,10 @@ export default function LinkedList3D({ initialValues = [42, 13, 7, 99] }) {
     camera.position.set(0, 5, 10)
     camera.lookAt(0, 0, 0)
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'low-power' })
     renderer.setSize(width, height)
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+    rendererRef.current = renderer
     container.innerHTML = ''
     container.appendChild(renderer.domElement)
 
@@ -87,105 +93,9 @@ export default function LinkedList3D({ initialValues = [42, 13, 7, 99] }) {
     grid.position.y = -0.5
     scene.add(grid)
 
-    const spacing = 2.4
-    const totalCount = nodes.length + 1 // + 1 para el bloque NULL
-    const startX = -((totalCount - 1) * spacing) / 2
-
-    const nodeMeshes = []
-    const texturesToDispose = []
-
-    nodes.forEach((val, i) => {
-      const x = startX + i * spacing
-      const isCurrent = i === currentIdx
-
-      // Grupo de nodo: caja izquierda (data) y caja derecha (next ptr)
-      const group = new THREE.Group()
-      group.position.set(x, 0, 0)
-
-      // Sub-bloque Data
-      const dataGeo = new THREE.BoxGeometry(0.9, 0.8, 1.0)
-      const dataMat = new THREE.MeshStandardMaterial({
-        color: isCurrent ? 0x10b981 : 0x6366f1,
-        emissive: isCurrent ? 0x059669 : 0x312e81,
-        emissiveIntensity: isCurrent ? 0.6 : 0.2,
-      })
-      const dataMesh = new THREE.Mesh(dataGeo, dataMat)
-      dataMesh.position.x = -0.45
-      group.add(dataMesh)
-
-      // Sub-bloque Next Ptr
-      const nextGeo = new THREE.BoxGeometry(0.6, 0.8, 1.0)
-      const nextMat = new THREE.MeshStandardMaterial({ color: 0x3b82f6, roughness: 0.3 })
-      const nextMesh = new THREE.Mesh(nextGeo, nextMat)
-      nextMesh.position.x = 0.35
-      group.add(nextMesh)
-
-      // Sprite de texto para el Data y Next
-      const canvas = document.createElement('canvas')
-      canvas.width = 256
-      canvas.height = 128
-      const ctx = canvas.getContext('2d')
-      ctx.fillStyle = '#ffffff'
-      ctx.font = 'bold 36px monospace'
-      ctx.textAlign = 'center'
-      ctx.fillText(`data: ${val}`, 128, 50)
-      ctx.fillStyle = '#93c5fd'
-      ctx.font = '22px monospace'
-      ctx.fillText('next ➜', 128, 90)
-
-      const texture = new THREE.CanvasTexture(canvas)
-      texturesToDispose.push(texture)
-      const spriteMat = new THREE.SpriteMaterial({ map: texture })
-      const sprite = new THREE.Sprite(spriteMat)
-      sprite.position.set(0, 1.0, 0)
-      sprite.scale.set(1.5, 0.75, 1)
-      group.add(sprite)
-
-      // Flecha conectora 3D hacia el siguiente nodo
-      const arrowLen = spacing - 1.5
-      const arrowCylGeo = new THREE.CylinderGeometry(0.04, 0.04, arrowLen, 16)
-      const arrowMat = new THREE.MeshStandardMaterial({ color: 0x38bdf8, emissive: 0x0284c7, emissiveIntensity: 0.8 })
-      const arrowCyl = new THREE.Mesh(arrowCylGeo, arrowMat)
-      arrowCyl.rotation.z = -Math.PI / 2
-      arrowCyl.position.set(0.65 + arrowLen / 2, 0, 0)
-      group.add(arrowCyl)
-
-      const coneGeo = new THREE.ConeGeometry(0.12, 0.3, 16)
-      const cone = new THREE.Mesh(coneGeo, arrowMat)
-      cone.rotation.z = -Math.PI / 2
-      cone.position.set(0.65 + arrowLen, 0, 0)
-      group.add(cone)
-
-      group.userData = { nodeIndex: i }
-      scene.add(group)
-      nodeMeshes.push(group)
-    })
-
-    // Bloque NULL final
-    const nullX = startX + nodes.length * spacing
-    const nullGeo = new THREE.BoxGeometry(1.0, 0.8, 1.0)
-    const nullMat = new THREE.MeshStandardMaterial({ color: 0xef4444, emissive: 0x991b1b, emissiveIntensity: 0.4 })
-    const nullMesh = new THREE.Mesh(nullGeo, nullMat)
-    nullMesh.position.set(nullX, 0, 0)
-    scene.add(nullMesh)
-
-    const nullCanvas = document.createElement('canvas')
-    nullCanvas.width = 256
-    nullCanvas.height = 128
-    const nullCtx = nullCanvas.getContext('2d')
-    nullCtx.fillStyle = '#ef4444'
-    nullCtx.font = 'bold 42px monospace'
-    nullCtx.textAlign = 'center'
-    nullCtx.fillText('NULL', 128, 60)
-    nullCtx.fillStyle = '#fca5a5'
-    nullCtx.font = '20px monospace'
-    nullCtx.fillText('(Fin de lista)', 128, 95)
-    const nullTex = new THREE.CanvasTexture(nullCanvas)
-    texturesToDispose.push(nullTex)
-    const nullSprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: nullTex }))
-    nullSprite.position.set(nullX, 1.0, 0)
-    nullSprite.scale.set(1.4, 0.7, 1)
-    scene.add(nullSprite)
+    const listGroup = new THREE.Group()
+    scene.add(listGroup)
+    listGroupRef.current = listGroup
 
     // Puntero actual (Current cursor)
     const pointerGroup = new THREE.Group()
@@ -206,29 +116,29 @@ export default function LinkedList3D({ initialValues = [42, 13, 7, 99] }) {
     cCtx.textAlign = 'center'
     cCtx.fillText('*current', 128, 50)
     const cTex = new THREE.CanvasTexture(cCanvas)
-    texturesToDispose.push(cTex)
+    texturesRef.current.push(cTex)
     const cSprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: cTex }))
     cSprite.position.set(0, 2.4, 0)
     cSprite.scale.set(1.4, 0.45, 1)
     pointerGroup.add(cSprite)
 
     scene.add(pointerGroup)
-    const targetX = startX + currentIdx * spacing
-    pointerGroup.position.set(targetX, 0, 0)
+    pointerGroupRef.current = pointerGroup
 
     let animationFrameId
-    let clock = new THREE.Clock()
+    const startTime = performance.now()
     const animate = () => {
       animationFrameId = requestAnimationFrame(animate)
-      const t = clock.getElapsedTime()
-      pointerGroup.position.x += (targetX - pointerGroup.position.x) * 0.15
-      pointerGroup.position.y = Math.sin(t * 5) * 0.08
+      const t = (performance.now() - startTime) * 0.001
+      if (pointerGroupRef.current) {
+        pointerGroupRef.current.position.y = Math.sin(t * 5) * 0.08
+      }
       renderer.render(scene, camera)
     }
     animate()
 
     const handleResize = () => {
-      if (!container) return
+      if (!container || !rendererRef.current) return
       const w = container.clientWidth
       const h = container.clientHeight
       camera.aspect = w / h
@@ -240,11 +150,121 @@ export default function LinkedList3D({ initialValues = [42, 13, 7, 99] }) {
     return () => {
       cancelAnimationFrame(animationFrameId)
       window.removeEventListener('resize', handleResize)
-      texturesToDispose.forEach((t) => t.dispose())
-      renderer.dispose()
-      if (container.contains(renderer.domElement)) {
-        container.removeChild(renderer.domElement)
+      texturesRef.current.forEach((t) => t.dispose())
+      if (rendererRef.current) {
+        rendererRef.current.dispose()
+        rendererRef.current.forceContextLoss()
       }
+      if (container) {
+        container.innerHTML = ''
+      }
+    }
+  }, [])
+
+  // Update nodes without recreating WebGL canvas
+  useEffect(() => {
+    const listGroup = listGroupRef.current
+    if (!listGroup) return
+
+    while (listGroup.children.length > 0) {
+      const obj = listGroup.children[0]
+      if (obj.geometry) obj.geometry.dispose()
+      listGroup.remove(obj)
+    }
+
+    const spacing = 2.4
+    const totalCount = nodes.length + 1 // + 1 para el bloque NULL
+    const startX = -((totalCount - 1) * spacing) / 2
+
+    nodes.forEach((val, i) => {
+      const x = startX + i * spacing
+      const isCurrent = i === currentIdx
+
+      const group = new THREE.Group()
+      group.position.set(x, 0, 0)
+
+      const dataGeo = new THREE.BoxGeometry(0.9, 0.8, 1.0)
+      const dataMat = new THREE.MeshStandardMaterial({
+        color: isCurrent ? 0x10b981 : 0x6366f1,
+        emissive: isCurrent ? 0x059669 : 0x312e81,
+        emissiveIntensity: isCurrent ? 0.6 : 0.2,
+      })
+      const dataMesh = new THREE.Mesh(dataGeo, dataMat)
+      dataMesh.position.x = -0.45
+      group.add(dataMesh)
+
+      const nextGeo = new THREE.BoxGeometry(0.6, 0.8, 1.0)
+      const nextMat = new THREE.MeshStandardMaterial({ color: 0x3b82f6, roughness: 0.3 })
+      const nextMesh = new THREE.Mesh(nextGeo, nextMat)
+      nextMesh.position.x = 0.35
+      group.add(nextMesh)
+
+      const canvas = document.createElement('canvas')
+      canvas.width = 256
+      canvas.height = 128
+      const ctx = canvas.getContext('2d')
+      ctx.fillStyle = '#ffffff'
+      ctx.font = 'bold 36px monospace'
+      ctx.textAlign = 'center'
+      ctx.fillText(`data: ${val}`, 128, 50)
+      ctx.fillStyle = '#93c5fd'
+      ctx.font = '22px monospace'
+      ctx.fillText('next ➜', 128, 90)
+
+      const texture = new THREE.CanvasTexture(canvas)
+      texturesRef.current.push(texture)
+      const spriteMat = new THREE.SpriteMaterial({ map: texture })
+      const sprite = new THREE.Sprite(spriteMat)
+      sprite.position.set(0, 1.0, 0)
+      sprite.scale.set(1.5, 0.75, 1)
+      group.add(sprite)
+
+      const arrowLen = spacing - 1.5
+      const arrowCylGeo = new THREE.CylinderGeometry(0.04, 0.04, arrowLen, 16)
+      const arrowMat = new THREE.MeshStandardMaterial({ color: 0x38bdf8, emissive: 0x0284c7, emissiveIntensity: 0.8 })
+      const arrowCyl = new THREE.Mesh(arrowCylGeo, arrowMat)
+      arrowCyl.rotation.z = -Math.PI / 2
+      arrowCyl.position.set(0.65 + arrowLen / 2, 0, 0)
+      group.add(arrowCyl)
+
+      const coneGeo = new THREE.ConeGeometry(0.12, 0.3, 16)
+      const cone = new THREE.Mesh(coneGeo, arrowMat)
+      cone.rotation.z = -Math.PI / 2
+      cone.position.set(0.65 + arrowLen, 0, 0)
+      group.add(cone)
+
+      group.userData = { nodeIndex: i }
+      listGroup.add(group)
+    })
+
+    const nullX = startX + nodes.length * spacing
+    const nullGeo = new THREE.BoxGeometry(1.0, 0.8, 1.0)
+    const nullMat = new THREE.MeshStandardMaterial({ color: 0xef4444, emissive: 0x991b1b, emissiveIntensity: 0.4 })
+    const nullMesh = new THREE.Mesh(nullGeo, nullMat)
+    nullMesh.position.set(nullX, 0, 0)
+    listGroup.add(nullMesh)
+
+    const nullCanvas = document.createElement('canvas')
+    nullCanvas.width = 256
+    nullCanvas.height = 128
+    const nullCtx = nullCanvas.getContext('2d')
+    nullCtx.fillStyle = '#ef4444'
+    nullCtx.font = 'bold 42px monospace'
+    nullCtx.textAlign = 'center'
+    nullCtx.fillText('NULL', 128, 60)
+    nullCtx.fillStyle = '#fca5a5'
+    nullCtx.font = '20px monospace'
+    nullCtx.fillText('(Fin de lista)', 128, 95)
+    const nullTex = new THREE.CanvasTexture(nullCanvas)
+    texturesRef.current.push(nullTex)
+    const nullSprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: nullTex }))
+    nullSprite.position.set(nullX, 1.0, 0)
+    nullSprite.scale.set(1.4, 0.7, 1)
+    listGroup.add(nullSprite)
+
+    if (pointerGroupRef.current) {
+      const targetX = startX + currentIdx * spacing
+      pointerGroupRef.current.position.x = targetX
     }
   }, [nodes, currentIdx])
 

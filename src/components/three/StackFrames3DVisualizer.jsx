@@ -204,7 +204,7 @@ export default function StackFrames3DVisualizer({ compact = false }) {
     camera.position.set(0, 7, 13)
     camera.lookAt(0, 0, 0)
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'low-power' })
     renderer.setSize(width, height)
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
     container.innerHTML = ''
@@ -477,8 +477,9 @@ export default function StackFrames3DVisualizer({ compact = false }) {
       window.removeEventListener('resize', handleResize)
       texturesToDispose.forEach((t) => t.dispose())
       renderer.dispose()
-      if (container.contains(renderer.domElement)) {
-        container.removeChild(renderer.domElement)
+      renderer.forceContextLoss()
+      if (container) {
+        container.innerHTML = ''
       }
     }
   }, [activeScenarioId, currentStepIdx])

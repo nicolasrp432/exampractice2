@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { db, auth, isConfigured } from '../utils/firebase'
-import { doc, setDoc, getDocs, collection, writeBatch } from 'firebase/firestore'
+import { doc, setDoc, getDoc, getDocs, collection, writeBatch } from 'firebase/firestore'
 
 const EXERCISE_IDS = [
   // Nivel 1
@@ -143,15 +143,30 @@ export const useProgressStore = create(
           }
 
           // 2. Sincronizar datos de perfil (racha, exámenes, etc.)
-          const profileDoc = await doc(db, `users/${uid}`)
-          const profileSnap = await doc(db, `users/${uid}`).id ? await doc(db, `users/${uid}`) : null
-          
-          // Para simplificar, si hay perfil en la nube con ultimaSesion más reciente, lo descargamos.
-          // Si no, subimos el local.
-          // ...
-          
+          try {
+            const profileDocRef = doc(db, `users/${uid}`)
+            const profileSnap = await getDoc(profileDocRef)
+            if (profileSnap.exists()) {
+              const cloudProfile = profileSnap.data()
+              if (cloudProfile.racha !== undefined) {
+                set((state) => ({
+                  racha: Math.max(state.racha || 0, cloudProfile.racha || 0),
+                  totalSesiones: Math.max(state.totalSesiones || 0, cloudProfile.totalSesiones || 0),
+                }))
+              }
+            } else {
+              // Inicializar perfil en la nube
+              await setDoc(profileDocRef, {
+                racha: get().racha || 0,
+                totalSesiones: get().totalSesiones || 0,
+                actualizadoEn: new Date().toISOString(),
+              }, { merge: true })
+            }
+          } catch (profileErr) {
+            console.warn('Sync profile non-fatal notice:', profileErr?.message)
+          }
         } catch (error) {
-          console.error('Error durante la sincronización bidireccional:', error)
+          console.warn('Sync notice:', error?.message)
         }
       },
 
