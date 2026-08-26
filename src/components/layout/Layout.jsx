@@ -3,6 +3,7 @@ import { Outlet, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import Sidebar from './Sidebar'
 import Header from './Header'
+import GlobalAiTutorDrawer from '@/components/chat/GlobalAiTutorDrawer'
 import { useOnlineStatus } from '@/hooks/useOnlineStatus'
 
 export default function Layout() {
@@ -50,6 +51,8 @@ export default function Layout() {
           </motion.div>
         </main>
       </div>
+
+      <GlobalAiTutorDrawer />
     </div>
   )
 }

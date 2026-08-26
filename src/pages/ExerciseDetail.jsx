@@ -2,48 +2,38 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  ChevronLeft, ChevronRight, Play, ClipboardList, BookOpen,
-  Hash, Gamepad2, Microscope, Shuffle, Cpu, Trophy, Trash2, Copy, Check, Brain,
-  Eye, Swords, Sparkles, Layers,
+  ChevronLeft, ChevronRight, Play, ClipboardList,
+  Gamepad2, Microscope, Shuffle, Trophy, Trash2, Copy, Check, Brain,
+  Swords, Sparkles,
 } from 'lucide-react'
 import clsx from 'clsx'
 import { getExercise, getPrevExercise, getNextExercise } from '@/data/index'
 import { useProgressStore } from '@/store/progressStore'
 import { useUserVariants } from '@/hooks/useUserVariants'
 import LevelBadge from '@/components/layout/LevelBadge'
-// PROMPT 6 — Componentes de visualización
-import SubjectViewer    from '@/components/exercise/SubjectViewer'
-import StoryCard        from '@/components/exercise/StoryCard'
-import FormulaVisualizer from '@/components/exercise/FormulaVisualizer'
-import CodeViewer       from '@/components/exercise/CodeViewer'
-import TrapsList        from '@/components/exercise/TrapsList'
-import ImageGenerator   from '@/components/exercise/ImageGenerator'
+import SubjectViewer from '@/components/exercise/SubjectViewer'
+import StoryCard from '@/components/exercise/StoryCard'
+import CodeViewer from '@/components/exercise/CodeViewer'
+import TrapsList from '@/components/exercise/TrapsList'
+import ImageGenerator from '@/components/exercise/ImageGenerator'
 import CampayoMethodCard from '@/components/exercise/CampayoMethodCard'
-import InputPlayground  from '@/components/simulator/InputPlayground'
-import LogicAnimator    from '@/components/simulator/LogicAnimator'
-import GdbStepper       from '@/components/gdb/GdbStepper'
-import ExerciseAnimation from '@/components/animation/ExerciseAnimation'
-import DojoLadder       from '@/components/dojo/DojoLadder'
+import InputPlayground from '@/components/simulator/InputPlayground'
+import LogicAnimator from '@/components/simulator/LogicAnimator'
+import GdbStepper from '@/components/gdb/GdbStepper'
+import DojoLadder from '@/components/dojo/DojoLadder'
 import AlgorithmThinkingGuide from '@/components/exercise/AlgorithmThinkingGuide'
-import StackFrames3DVisualizer from '@/components/three/StackFrames3DVisualizer'
-import Memory3DVisualizer from '@/components/three/Memory3DVisualizer'
-import BitSwitches3D from '@/components/three/BitSwitches3D'
-import LinkedList3D from '@/components/three/LinkedList3D'
+import Exercise3DDojo from '@/components/three/Exercise3DDojo'
 
 // ─── Tabs config ──────────────────────────────────────────────────────────────
 const TABS = [
-  { id: 'subject',   icon: ClipboardList, label: 'Subject'         },
-  { id: 'logica',    icon: Brain,         label: 'Lógica & 3D'     },
-  { id: 'historia',  icon: BookOpen,      label: 'Historia'        },
-  { id: 'campayo',   icon: Sparkles,      label: 'Método Campayo'  },
-  { id: 'formula',   icon: Hash,          label: 'Fórmula'         },
-  { id: 'visualizar',icon: Eye,           label: 'Visualizar'      },
-  { id: 'dojo',      icon: Swords,        label: 'Dojo'            },
-  { id: 'simulador', icon: Gamepad2,      label: 'Simulador'       },
-  { id: 'gdb',       icon: Microscope,    label: 'GDB'             },
-  { id: 'variantes', icon: Shuffle,       label: 'Variantes'       },
-  { id: 'debajo',    icon: Cpu,           label: 'Por debajo'      },
-  { id: 'pruebate',  icon: Trophy,        label: 'Pruébate'        },
+  { id: 'subject',   icon: ClipboardList, label: 'Subject'                },
+  { id: 'logica',    icon: Brain,         label: 'Lógica & 3D'            },
+  { id: 'historia',  icon: Sparkles,      label: 'Mnemotecnia & Palacio'  },
+  { id: 'dojo',      icon: Swords,        label: 'Dojo'                   },
+  { id: 'simulador', icon: Gamepad2,      label: 'Simulador'              },
+  { id: 'gdb',       icon: Microscope,    label: 'GDB'                    },
+  { id: 'variantes', icon: Shuffle,       label: 'Soluciones'             },
+  { id: 'pruebate',  icon: Trophy,        label: 'Pruébate'               },
 ]
 
 const STATUS_CONFIG = {
@@ -138,96 +128,62 @@ function TabSubject({ exercise }) {
 }
 
 function TabLogicaVisual({ exercise }) {
-  const [selected3D, setSelected3D] = useState(() => {
-    const id = exercise?.id || ''
-    if (id.includes('bit') || id === 'is_power_of_2' || id === 'max') return 'bits'
-    if (id.includes('list') || id.includes('sort_list')) return 'list'
-    if (id === 'ft_swap' || id === 'fprime' || id === 'print_hex') return 'stack'
-    return 'memory'
-  })
-
-  const sampleArg = exercise.tests?.[0]?.entrada?.[0]
-  const sampleText = typeof sampleArg === 'string' ? sampleArg : '42 Madrid'
-  const sampleNum = typeof sampleArg === 'number' ? sampleArg : parseInt(sampleArg) || 42
-
   return (
     <div className="space-y-6">
       {/* Visual Thinking Guide */}
       <AlgorithmThinkingGuide exercise={exercise} />
 
-      {/* Interactive 3D Model Explorer for this Exercise */}
-      <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-xs space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-zinc-100 pb-3">
-          <div className="flex items-center gap-2">
-            <Layers size={18} className="text-indigo-600" />
-            <div>
-              <h4 className="text-sm font-bold text-zinc-900">Estructura en Memoria &amp; Hardware 3D</h4>
-              <p className="text-[11px] text-zinc-500">Inspecciona tridimensionalmente cómo viajan los bytes de este ejercicio</p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-1 overflow-x-auto">
-            <button
-              onClick={() => setSelected3D('memory')}
-              className={clsx(
-                'px-2.5 py-1 rounded-lg text-xs font-semibold whitespace-nowrap transition-all',
-                selected3D === 'memory' ? 'bg-zinc-900 text-white' : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'
-              )}
-            >
-              Memoria RAM
-            </button>
-            <button
-              onClick={() => setSelected3D('stack')}
-              className={clsx(
-                'px-2.5 py-1 rounded-lg text-xs font-semibold whitespace-nowrap transition-all',
-                selected3D === 'stack' ? 'bg-zinc-900 text-white' : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'
-              )}
-            >
-              Stack &amp; Punteros
-            </button>
-            <button
-              onClick={() => setSelected3D('bits')}
-              className={clsx(
-                'px-2.5 py-1 rounded-lg text-xs font-semibold whitespace-nowrap transition-all',
-                selected3D === 'bits' ? 'bg-zinc-900 text-white' : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'
-              )}
-            >
-              Interruptores 8 Bits
-            </button>
-            <button
-              onClick={() => setSelected3D('list')}
-              className={clsx(
-                'px-2.5 py-1 rounded-lg text-xs font-semibold whitespace-nowrap transition-all',
-                selected3D === 'list' ? 'bg-zinc-900 text-white' : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'
-              )}
-            >
-              Nodos / Listas
-            </button>
-          </div>
-        </div>
-
-        <div>
-          {selected3D === 'memory' && <Memory3DVisualizer initialType="string" initialText={sampleText} />}
-          {selected3D === 'stack' && <StackFrames3DVisualizer />}
-          {selected3D === 'bits' && <BitSwitches3D initialValue={sampleNum} />}
-          {selected3D === 'list' && <LinkedList3D initialValues={[42, 13, 7, 99]} />}
-        </div>
+      {/* Laboratorio 3D Dedicado al Ejercicio */}
+      <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-xs">
+        <Exercise3DDojo exercise={exercise} />
       </div>
     </div>
   )
 }
 
 function TabHistoria({ exercise }) {
+  const [activeMnemonicView, setActiveMnemonicView] = useState('palacio') // 'palacio' | 'campayo'
+
   return (
-    <div className="grid gap-6 md:grid-cols-2">
-      <StoryCard palacio={exercise.palacio} relacionados={exercise.relacionados} />
-      <ImageGenerator exercise={exercise} />
+    <div className="space-y-6">
+      {/* Sub-selector de Mnemotecnia */}
+      <div className="flex items-center gap-2 p-1 bg-zinc-100/80 rounded-xl w-fit border border-zinc-200 text-xs">
+        <button
+          onClick={() => setActiveMnemonicView('palacio')}
+          className={clsx(
+            'px-3 py-1.5 rounded-lg font-semibold transition-all flex items-center gap-1.5',
+            activeMnemonicView === 'palacio'
+              ? 'bg-white text-zinc-900 shadow-xs'
+              : 'text-zinc-500 hover:text-zinc-800'
+          )}
+        >
+          <span>🏰</span>
+          <span>Palacio de la Memoria & Nano Banana</span>
+        </button>
+        <button
+          onClick={() => setActiveMnemonicView('campayo')}
+          className={clsx(
+            'px-3 py-1.5 rounded-lg font-semibold transition-all flex items-center gap-1.5',
+            activeMnemonicView === 'campayo'
+              ? 'bg-white text-zinc-900 shadow-xs'
+              : 'text-zinc-500 hover:text-zinc-800'
+          )}
+        >
+          <span>🧠</span>
+          <span>Método Ramón Campayo (5 Pasos)</span>
+        </button>
+      </div>
+
+      {activeMnemonicView === 'palacio' ? (
+        <div className="grid gap-6 md:grid-cols-2">
+          <StoryCard palacio={exercise.palacio} relacionados={exercise.relacionados} />
+          <ImageGenerator exercise={exercise} />
+        </div>
+      ) : (
+        <CampayoMethodCard exercise={exercise} />
+      )}
     </div>
   )
-}
-
-function TabFormula({ exercise }) {
-  return <FormulaVisualizer formulaClave={exercise.formulaClave} />
 }
 
 function TabSimulador({ exercise }) {
@@ -404,28 +360,6 @@ function TabVariantes({ exercise }) {
   )
 }
 
-function TabDebajo({ exercise }) {
-  if (!exercise.bajoCelCapot) return <EmptyTab label="explicación técnica" />
-
-  const secciones = exercise.bajoCelCapot.split('\n\n').filter(Boolean)
-
-  return (
-    <div className="space-y-3">
-      {secciones.map((seccion, i) => {
-        const [titulo, ...resto] = seccion.split('\n')
-        return (
-          <div key={i} className="card p-4">
-            <p className="text-xs font-semibold text-blue-600 uppercase tracking-wide mb-2">{titulo}</p>
-            <p className="text-sm text-zinc-700 leading-relaxed font-mono whitespace-pre-wrap">
-              {resto.join('\n')}
-            </p>
-          </div>
-        )
-      })}
-    </div>
-  )
-}
-
 function TabPruebate({ exercise, navigate }) {
   const tests = exercise.tests ?? []
 
@@ -533,14 +467,10 @@ export default function ExerciseDetail() {
     subject:   <TabSubject exercise={exercise} />,
     logica:    <TabLogicaVisual exercise={exercise} />,
     historia:  <TabHistoria exercise={exercise} />,
-    campayo:   <CampayoMethodCard exercise={exercise} />,
-    formula:   <TabFormula exercise={exercise} />,
-    visualizar: <ExerciseAnimation exercise={exercise} />,
     dojo:      <DojoLadder exercise={exercise} />,
     simulador: <TabSimulador exercise={exercise} />,
     gdb:       <TabGDB exercise={exercise} />,
     variantes: <TabVariantes exercise={exercise} />,
-    debajo:    <TabDebajo exercise={exercise} />,
     pruebate:  <TabPruebate exercise={exercise} navigate={navigate} />,
   }
 

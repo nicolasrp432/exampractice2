@@ -26,10 +26,7 @@ import CampayoMethodCard from '@/components/exercise/CampayoMethodCard'
 import AiTutorPanel from '@/components/practice/AiTutorPanel'
 import DojoLadder from '@/components/dojo/DojoLadder'
 import AlgorithmThinkingGuide from '@/components/exercise/AlgorithmThinkingGuide'
-import StackFrames3DVisualizer from '@/components/three/StackFrames3DVisualizer'
-import Memory3DVisualizer from '@/components/three/Memory3DVisualizer'
-import BitSwitches3D from '@/components/three/BitSwitches3D'
-import LinkedList3D from '@/components/three/LinkedList3D'
+import Exercise3DDojo from '@/components/three/Exercise3DDojo'
 
 // ─── Default placeholder code ────────────────────────────────────────────────
 function getPlaceholder(exercise) {
@@ -1208,51 +1205,14 @@ export default function PracticeMode() {
           </div>
         )
       case 'dojo3d': {
-        const bitwiseIds = ['print_bits', 'reverse_bits', 'swap_bits', 'is_power_of_2', 'max']
-        const listIds = ['ft_list_size', 'ft_list_foreach', 'ft_list_remove_if', 'sort_list']
-        const stackIds = ['ft_swap', 'fprime', 'print_hex']
-        const isBitwise = bitwiseIds.includes(exercise.id)
-        const isList = listIds.includes(exercise.id)
-        const isStack = stackIds.includes(exercise.id)
-
-        const sampleArg = exercise.tests?.[0]?.entrada?.[0]
-        const sampleText = typeof sampleArg === 'string' ? sampleArg : '42 Madrid'
-        const sampleNum = typeof sampleArg === 'number' ? sampleArg : parseInt(sampleArg) || 42
-
         return (
-          <div className="space-y-5">
-            {/* Pensamiento Algorítmico Visual */}
+          <div className="space-y-6">
+            {/* Pensamiento Algorítmico y Razonamiento Personalizado */}
             <AlgorithmThinkingGuide exercise={exercise} />
 
-            <div className="flex items-center justify-between pt-2 border-t border-zinc-100">
-              <div className="flex items-center gap-2">
-                <Box size={18} className="text-indigo-600" />
-                <h3 className="font-bold text-sm text-zinc-900">Laboratorio de Memoria 3D</h3>
-              </div>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200 uppercase tracking-wide">
-                Interactivo
-              </span>
-            </div>
-
-            {/* 3D Visualizer Model for this exercise */}
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-400">
-                  Estructura en Memoria 3D
-                </span>
-                <span className="text-[11px] text-zinc-500 font-mono">
-                  {isBitwise ? 'uint8_t (8 bits)' : isList ? 't_list *' : isStack ? 'Stack Frame (*ptr)' : 'char * (array \\0)'}
-                </span>
-              </div>
-              {isBitwise ? (
-                <BitSwitches3D initialValue={sampleNum} />
-              ) : isList ? (
-                <LinkedList3D initialValues={[42, 13, 7, 99]} />
-              ) : isStack ? (
-                <StackFrames3DVisualizer />
-              ) : (
-                <Memory3DVisualizer initialType="string" initialText={sampleText} />
-              )}
+            {/* Visualizador 3D Dedicado al Tipo Exacto de Ejercicio */}
+            <div className="pt-2 border-t border-zinc-100">
+              <Exercise3DDojo exercise={exercise} />
             </div>
 
             <div className="h-px bg-zinc-100 my-2" />
@@ -1536,8 +1496,8 @@ export default function PracticeMode() {
                     : 'border-transparent text-zinc-500 hover:text-indigo-600 hover:bg-zinc-100/50'
                 )}
               >
-                <Box size={14} className="text-indigo-600" />
-                Dojo 3D
+                <Brain size={14} className="text-indigo-600" />
+                Lógica & 3D
               </button>
               <button
                 onClick={() => setActiveTab('moulinette')}
@@ -1714,8 +1674,8 @@ export default function PracticeMode() {
                 activeMobileTab === 'dojo3d' ? "text-indigo-700 bg-indigo-50 font-bold" : "text-zinc-500"
               )}
             >
-              <Box size={15} className={activeMobileTab === 'dojo3d' ? 'text-indigo-600' : 'text-zinc-500'} />
-              <span>Dojo 3D</span>
+              <Brain size={15} className={activeMobileTab === 'dojo3d' ? 'text-indigo-600' : 'text-zinc-500'} />
+              <span>Lógica & 3D</span>
             </button>
 
             <button

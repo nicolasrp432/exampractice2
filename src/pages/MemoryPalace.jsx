@@ -90,6 +90,7 @@ function PalaceView({ ejercicios }) {
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
           {roomExercises.map((ex, i) => {
             const estado = ejercicios[ex.id]?.estado || 'no_iniciado';
+            const savedImg = localStorage.getItem(`42prep-img-${ex.id}`);
             const estadoColor = estado === 'dominado' ? 'border-green-300 bg-green-50' : 
                                estado === 'practicando' ? 'border-orange-300 bg-orange-50' : 
                                'border-zinc-200 bg-white hover:border-zinc-300';
@@ -101,9 +102,15 @@ function PalaceView({ ejercicios }) {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.05 }}
                 onClick={() => navigate(`/ejercicio/${ex.id}`)}
-                className={clsx('flex flex-col items-center justify-center p-6 rounded-2xl border text-center transition-all hover:shadow-md cursor-pointer', estadoColor)}
+                className={clsx('flex flex-col items-center justify-center p-4 rounded-2xl border text-center transition-all hover:shadow-md cursor-pointer overflow-hidden', estadoColor)}
               >
-                <span className="text-5xl mb-3 block drop-shadow-sm">{ex.palacio?.emoji || '❓'}</span>
+                {savedImg ? (
+                  <div className="w-16 h-16 rounded-xl overflow-hidden mb-2 shadow-xs border border-zinc-200/60 shrink-0">
+                    <img src={savedImg} alt={ex.nombre} className="w-full h-full object-cover" />
+                  </div>
+                ) : (
+                  <span className="text-5xl mb-3 block drop-shadow-sm">{ex.palacio?.emoji || '❓'}</span>
+                )}
                 <span className="font-bold text-zinc-800 text-sm mb-1">{ex.palacio?.personaje || 'Sin Personaje'}</span>
                 <span className="font-mono text-xs text-zinc-500">{ex.nombre}</span>
               </motion.button>
@@ -272,12 +279,18 @@ function FlashcardsView({ ejercicios }) {
             >
               {/* ANVERSO */}
               <div 
-                className="absolute inset-0 w-full h-full bg-white border-2 border-zinc-200 rounded-3xl shadow-lg flex flex-col items-center justify-center p-8 text-center"
+                className="absolute inset-0 w-full h-full bg-white border-2 border-zinc-200 rounded-3xl shadow-lg flex flex-col items-center justify-center p-8 text-center overflow-hidden"
                 style={{ backfaceVisibility: 'hidden' }}
               >
-                <span className="text-8xl mb-6 drop-shadow-md">{exercise.palacio?.emoji || '❓'}</span>
+                {localStorage.getItem(`42prep-img-${exercise.id}`) ? (
+                  <div className="w-32 h-32 rounded-2xl overflow-hidden mb-4 shadow-md border border-zinc-200">
+                    <img src={localStorage.getItem(`42prep-img-${exercise.id}`)} alt={exercise.nombre} className="w-full h-full object-cover" />
+                  </div>
+                ) : (
+                  <span className="text-8xl mb-6 drop-shadow-md">{exercise.palacio?.emoji || '❓'}</span>
+                )}
                 <h2 className="text-3xl font-bold text-zinc-800 font-mono">{exercise.nombre}</h2>
-                <div className="mt-8 px-4 py-2 bg-zinc-100 text-zinc-500 rounded-full font-medium text-sm animate-pulse">
+                <div className="mt-6 px-4 py-2 bg-zinc-100 text-zinc-500 rounded-full font-medium text-sm animate-pulse">
                   Click para revelar
                 </div>
               </div>
@@ -420,6 +433,7 @@ function CharactersView({ ejercicios }) {
         <AnimatePresence>
           {filtered.map(ex => {
             const estado = ejercicios[ex.id]?.estado || 'no_iniciado';
+            const savedImg = localStorage.getItem(`42prep-img-${ex.id}`);
             return (
               <motion.button
                 layout
@@ -429,13 +443,19 @@ function CharactersView({ ejercicios }) {
                 transition={{ duration: 0.2 }}
                 key={ex.id}
                 onClick={() => navigate(`/ejercicio/${ex.id}`)}
-                className="bg-white border border-zinc-200 rounded-2xl p-5 flex flex-col items-center text-center hover:shadow-md hover:border-zinc-300 transition-all text-left h-full"
+                className="bg-white border border-zinc-200 rounded-2xl p-4 flex flex-col items-center text-center hover:shadow-md hover:border-zinc-300 transition-all text-left h-full overflow-hidden"
               >
-                <span className="text-5xl mb-4 drop-shadow-sm">{ex.palacio?.emoji || '❓'}</span>
+                {savedImg ? (
+                  <div className="w-16 h-16 rounded-xl overflow-hidden mb-3 shadow-xs border border-zinc-200 shrink-0">
+                    <img src={savedImg} alt={ex.nombre} className="w-full h-full object-cover" />
+                  </div>
+                ) : (
+                  <span className="text-5xl mb-3 drop-shadow-sm">{ex.palacio?.emoji || '❓'}</span>
+                )}
                 <h3 className="font-bold text-zinc-800 leading-tight mb-1">{ex.palacio?.personaje || 'Sin Personaje'}</h3>
-                <span className="font-mono text-xs text-zinc-500 mb-4">{ex.nombre}</span>
+                <span className="font-mono text-xs text-zinc-500 mb-3">{ex.nombre}</span>
                 
-                <div className="w-full flex items-center justify-between mt-auto pt-4 border-t border-zinc-100">
+                <div className="w-full flex items-center justify-between mt-auto pt-3 border-t border-zinc-100">
                   <span className="text-xs font-semibold px-2 py-1 bg-zinc-100 text-zinc-600 rounded-md">
                     Nivel {ex.nivel}
                   </span>
