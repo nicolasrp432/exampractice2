@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   ArrowLeft, Play, Trash2, Sparkles, ChevronDown, ChevronUp, Eye, Timer,
   CheckCircle2, XCircle, Circle, Trophy, RotateCcw, Save, X, ClipboardList, BookOpen,
-  Microscope, Terminal, Plus, AlertTriangle, Loader2, Box, Zap, Code2
+  Microscope, Terminal, Plus, AlertTriangle, Loader2, Box, Zap, Code2, Brain
 } from 'lucide-react'
 import clsx from 'clsx'
 import { getExercise } from '@/data/index'
