@@ -298,3 +298,5 @@ export const useProgressStore = create(
     }
   )
 )
+
+export { useSettingsStore } from './settingsStore'

@@ -1035,6 +1035,8 @@ export default function PracticeMode() {
               <h2 className="font-bold text-sm text-zinc-800">Enunciado del Ejercicio</h2>
             </div>
             <SubjectViewer
+              exercise={exercise}
+              exerciseId={exercise.id}
               subject={exercise.subject}
               subjectEs={exercise.subjectEs}
               funcionesPermitidas={exercise.funcionesPermitidas}

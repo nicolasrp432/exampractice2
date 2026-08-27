@@ -5,6 +5,7 @@ import { motion } from 'framer-motion'
 import { ArrowLeft, Play, CheckCircle2, XCircle, Clock3, Flag, SkipForward, Send } from 'lucide-react'
 import clsx from 'clsx'
 import { allExercises } from '@/data/index'
+import SubjectViewer from '@/components/exercise/SubjectViewer'
 import { runTests } from '@/utils/simulators/index'
 import { buildExamPlan, getExamNavigationItems, summarizeExamResults } from '@/utils/exam'
 import { useProgressStore } from '@/store/progressStore'
@@ -158,14 +159,21 @@ function ExamActive({ session, onSubmit, onSkip, onFinish, showHints }) {
         <main className="flex-1 overflow-hidden p-4 sm:p-6">
           <div className="grid h-full gap-4 lg:grid-cols-[1fr_380px]">
             <div className="flex min-w-0 flex-col gap-4">
-              <div className="card flex-1 min-h-0 p-4 sm:p-6">
-                <div className="terminal-box text-base sm:text-lg whitespace-pre-wrap">
-                  {current?.subject || 'Sin subject'}
+              <div className="card flex-1 min-h-0 p-4 sm:p-5 flex flex-col justify-between">
+                <SubjectViewer
+                  exercise={current}
+                  exerciseId={current?.id}
+                  subject={current?.subject}
+                  subjectEs={current?.subjectEs}
+                  funcionesPermitidas={current?.funcionesPermitidas}
+                  archivosEsperados={current?.archivosEsperados}
+                />
+                <div className="mt-2 flex items-center justify-between text-xs text-zinc-500 border-t border-zinc-100 pt-2">
+                  <div className="flex items-center gap-1.5">
+                    <Clock3 size={13} /> Nivel {current?.nivel} · {current?.dificultad}
+                  </div>
+                  {showHints ? <span className="text-amber-600 font-medium">Pistas activadas</span> : null}
                 </div>
-                <div className="mt-3 flex items-center gap-2 text-xs text-zinc-500">
-                  <Clock3 size={14} /> Nivel {current?.nivel} · {current?.dificultad}
-                </div>
-                {showHints ? <p className="mt-3 text-xs text-amber-600">Pistas activadas para este simulacro.</p> : null}
               </div>
 
               <div className="card min-h-[320px] overflow-hidden">

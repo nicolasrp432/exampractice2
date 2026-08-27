@@ -102,6 +102,8 @@ function TabSubject({ exercise }) {
         </div>
       )}
       <SubjectViewer
+        exercise={exercise}
+        exerciseId={exercise.id}
         subject={subjectToShow}
         subjectEs={exercise.subjectEs}
         funcionesPermitidas={exercise.funcionesPermitidas}

@@ -13,6 +13,7 @@ export const useSettingsStore = create(
       strictMoulinette: true,
       geminiApiKey: '',
 
+      setIdioma: (idioma) => set({ idioma }),
       setTimerExamen: (mins) => set({ timerExamen: mins }),
       setNivelesExamen: (niveles) => set({ nivelesExamen: niveles }),
       togglePistas: () => set(s => ({ mostrarPistas: !s.mostrarPistas })),
