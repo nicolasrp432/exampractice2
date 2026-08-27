@@ -16,16 +16,11 @@ try {
 }
 
 function getAiClient(customKey?: string) {
-  const apiKey = customKey?.trim() || process.env.GEMINI_API_KEY;
+  const rawKey = customKey?.trim() || process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
+  if (!rawKey) return null;
+  const apiKey = rawKey.replace(/^["']|["']$/g, '').trim();
   if (!apiKey) return null;
-  return new GoogleGenAI({
-    apiKey,
-    httpOptions: {
-      headers: {
-        'User-Agent': 'aistudio-build',
-      },
-    },
-  });
+  return new GoogleGenAI({ apiKey });
 }
 
 function getSystemInstruction(exerciseContext?: any) {
@@ -91,31 +86,36 @@ async function startServer() {
       }
 
       if (ai) {
-        try {
-          const contents = history.map((msg: any) => ({
-            role: msg.role === 'user' ? 'user' : 'model',
-            parts: [{ text: msg.text || msg.content || '' }],
-          }));
+        const contents = history.map((msg: any) => ({
+          role: msg.role === 'user' ? 'user' : 'model',
+          parts: [{ text: msg.text || msg.content || '' }],
+        }));
 
-          contents.push({
-            role: 'user',
-            parts: [{ text: contextEnrichedMessage }],
-          });
+        contents.push({
+          role: 'user',
+          parts: [{ text: contextEnrichedMessage }],
+        });
 
-          const response = await ai.models.generateContent({
-            model: 'gemini-3.7-flash',
-            contents,
-            config: {
-              systemInstruction,
-              temperature: 0.5,
-            },
-          });
+        const candidateModels = ['gemini-2.5-flash', 'gemini-3.7-flash', 'gemini-flash-latest'];
 
-          const replyText = response.text || 'No se pudo generar respuesta.';
-          return res.json({ reply: replyText });
-        } catch (apiErr: any) {
-          console.error('Gemini chat API error:', apiErr?.message);
-          // Si falla por cuota o modelo, fallback socrático
+        for (const model of candidateModels) {
+          try {
+            const response = await ai.models.generateContent({
+              model,
+              contents,
+              config: {
+                systemInstruction,
+                temperature: 0.5,
+              },
+            });
+
+            const replyText = response.text;
+            if (replyText) {
+              return res.json({ reply: replyText, modelUsed: model });
+            }
+          } catch (apiErr: any) {
+            console.warn(`Model ${model} failed:`, apiErr?.message || apiErr);
+          }
         }
       }
 

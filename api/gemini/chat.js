@@ -1,16 +1,12 @@
 import { GoogleGenAI } from '@google/genai';
 
 function getAiClient(customKey) {
-  const apiKey = customKey?.trim() || process.env.GEMINI_API_KEY;
+  const rawKey = customKey?.trim() || process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
+  if (!rawKey) return null;
+  // Limpiar comillas o espacios residuales
+  const apiKey = rawKey.replace(/^["']|["']$/g, '').trim();
   if (!apiKey) return null;
-  return new GoogleGenAI({
-    apiKey,
-    httpOptions: {
-      headers: {
-        'User-Agent': 'aistudio-build',
-      },
-    },
-  });
+  return new GoogleGenAI({ apiKey });
 }
 
 function getSystemInstruction(exerciseContext) {
@@ -67,36 +63,43 @@ export default async function handler(req, res) {
     }
 
     if (ai) {
-      try {
-        const contents = history.map((msg) => ({
-          role: msg.role === 'user' ? 'user' : 'model',
-          parts: [{ text: msg.text || msg.content || '' }],
-        }));
+      const contents = history.map((msg) => ({
+        role: msg.role === 'user' ? 'user' : 'model',
+        parts: [{ text: msg.text || msg.content || '' }],
+      }));
 
-        contents.push({
-          role: 'user',
-          parts: [{ text: contextEnrichedMessage }],
-        });
+      contents.push({
+        role: 'user',
+        parts: [{ text: contextEnrichedMessage }],
+      });
 
-        const response = await ai.models.generateContent({
-          model: 'gemini-3.7-flash',
-          contents,
-          config: {
-            systemInstruction,
-            temperature: 0.5,
-          },
-        });
+      // Modelos candidatos en orden de compatibilidad y velocidad
+      const candidateModels = ['gemini-2.5-flash', 'gemini-3.7-flash', 'gemini-flash-latest'];
 
-        const replyText = response.text || 'No se pudo generar respuesta.';
-        return res.status(200).json({ reply: replyText });
-      } catch (apiErr) {
-        console.error('Vercel serverless gemini error:', apiErr?.message);
+      for (const model of candidateModels) {
+        try {
+          const response = await ai.models.generateContent({
+            model,
+            contents,
+            config: {
+              systemInstruction,
+              temperature: 0.5,
+            },
+          });
+
+          const replyText = response.text;
+          if (replyText) {
+            return res.status(200).json({ reply: replyText, modelUsed: model });
+          }
+        } catch (apiErr) {
+          console.warn(`Model ${model} failed on Vercel:`, apiErr?.message || apiErr);
+        }
       }
     }
 
-    // Fallback pedagógico local socrático
+    // Fallback pedagógico local socrático si no hay API key o si se agotó la cuota
     const fallbackReply = generateFallbackChat(message, exerciseContext, codeContext);
-    return res.status(200).json({ reply: fallbackReply });
+    return res.status(200).json({ reply: fallbackReply, isFallback: true });
   } catch (err) {
     console.error('Error in Vercel api/gemini/chat:', err);
     res.status(500).json({ error: err.message || 'Error interno del tutor' });

@@ -14,8 +14,10 @@ import {
   AlertTriangle
 } from 'lucide-react';
 import clsx from 'clsx';
+import { useSettingsStore } from '@/store/settingsStore';
 
 export default function AiTutorPanel({ exercise, getCurrentCode, tests = [] }) {
+  const geminiApiKey = useSettingsStore((s) => s.geminiApiKey);
   const [messages, setMessages] = useState(() => {
     try {
       const saved = localStorage.getItem(`42prep-tutor-${exercise?.id}`);
@@ -75,6 +77,7 @@ export default function AiTutorPanel({ exercise, getCurrentCode, tests = [] }) {
           history: updatedMessages.slice(-10),
           exerciseContext: exercise,
           codeContext: currentCode,
+          customKey: geminiApiKey || undefined,
         }),
       });
 

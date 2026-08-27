@@ -23,8 +23,10 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { allExercises, getExercise } from '@/data/index';
 import { generateSocraticResponse } from '@/utils/socraticTutor';
+import { useSettingsStore } from '@/store/settingsStore';
 
 export default function GlobalAiTutorDrawer() {
+  const geminiApiKey = useSettingsStore((s) => s.geminiApiKey);
   const [isOpen, setIsOpen] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const [messages, setMessages] = useState(() => {
@@ -89,6 +91,7 @@ export default function GlobalAiTutorDrawer() {
           history: newHistory.slice(-8), // mantener contexto reciente compacto
           exerciseContext: activeExercise,
           codeContext: currentCode,
+          customKey: geminiApiKey || undefined,
         }),
       });
 

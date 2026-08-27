@@ -19,6 +19,7 @@ import {
   Share2
 } from 'lucide-react';
 import clsx from 'clsx';
+import { useSettingsStore } from '@/store/settingsStore';
 
 const STYLE_PRESETS = [
   { id: 'octane', label: '🎨 3D Surrealista', promptSuffix: 'vibrant 3D cartoon octane render, surreal visual association, detailed lighting, character focus, 8k render' },
@@ -36,6 +37,7 @@ const ASPECT_RATIOS = [
 ];
 
 export default function ImageGenerator({ exercise, onSaveImage, savedImageUrl = null }) {
+  const geminiApiKey = useSettingsStore((s) => s.geminiApiKey);
   const [activeTab, setActiveTab] = useState('nanobanana'); // 'nanobanana' | 'video' | 'upload' | 'url'
   const [selectedStyle, setSelectedStyle] = useState('octane');
   const [aspectRatio, setAspectRatio] = useState('1:1');
@@ -109,6 +111,7 @@ export default function ImageGenerator({ exercise, onSaveImage, savedImageUrl = 
           aspectRatio,
           inputImage: isRemix ? imageUrl : undefined,
           exerciseId: exercise?.id,
+          customKey: geminiApiKey || undefined,
         }),
       });
 

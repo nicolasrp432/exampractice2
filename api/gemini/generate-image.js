@@ -1,16 +1,11 @@
 import { GoogleGenAI } from '@google/genai';
 
 function getAiClient(customKey) {
-  const apiKey = customKey?.trim() || process.env.GEMINI_API_KEY;
+  const rawKey = customKey?.trim() || process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
+  if (!rawKey) return null;
+  const apiKey = rawKey.replace(/^["']|["']$/g, '').trim();
   if (!apiKey) return null;
-  return new GoogleGenAI({
-    apiKey,
-    httpOptions: {
-      headers: {
-        'User-Agent': 'aistudio-build',
-      },
-    },
-  });
+  return new GoogleGenAI({ apiKey });
 }
 
 export default async function handler(req, res) {
