@@ -28,6 +28,9 @@ import DojoLadder from '@/components/dojo/DojoLadder'
 import AlgorithmThinkingGuide from '@/components/exercise/AlgorithmThinkingGuide'
 import Exercise3DDojo from '@/components/three/Exercise3DDojo'
 import MainTestingLab from '@/components/practice/MainTestingLab'
+import EditorToolbar from '@/components/editor/EditorToolbar'
+import InteractiveTerminal from '@/components/terminal/InteractiveTerminal'
+import { registerCustomMonacoThemes } from '@/components/editor/editorThemes'
 
 // ─── Default placeholder code ────────────────────────────────────────────────
 function getPlaceholder(exercise) {
@@ -769,6 +772,61 @@ export default function PracticeMode() {
   const [code, setCode] = useState(() => localStorage.getItem(STORAGE_KEY) || getPlaceholder(exercise))
   const editorRef = useRef(null)
 
+  // ─── Personalización del Editor & Terminal 42 ────────────────────────────
+  const [editorTheme, setEditorTheme] = useState(() => {
+    return localStorage.getItem('42prep-editor-theme') || 'vs-dark'
+  })
+  const [editorLanguage, setEditorLanguage] = useState('c')
+  const [editorFontSize, setEditorFontSize] = useState(() => {
+    const val = localStorage.getItem('42prep-editor-fontsize')
+    return val ? Number(val) : 13
+  })
+  const [editorTabSize, setEditorTabSize] = useState(4)
+  const [editorInsertSpaces, setEditorInsertSpaces] = useState(false)
+  const [editorMinimap, setEditorMinimap] = useState(false)
+  const [editorWordWrap, setEditorWordWrap] = useState('off')
+  const [editorLineNumbers, setEditorLineNumbers] = useState('on')
+  const [isTerminalOpen, setIsTerminalOpen] = useState(false)
+  const [isFullscreenEditor, setIsFullscreenEditor] = useState(false)
+
+  // Registrar temas custom de Monaco
+  const handleEditorWillMount = useCallback((monaco) => {
+    registerCustomMonacoThemes(monaco)
+  }, [])
+
+  // Atajo de teclado global Ctrl+` o Cmd+` para alternar la terminal
+  useEffect(() => {
+    const handleGlobalKeyDown = (e) => {
+      if ((e.ctrlKey || e.metaKey) && (e.key === '`' || e.key === 'ñ')) {
+        e.preventDefault()
+        setIsTerminalOpen(prev => !prev)
+      }
+    }
+    window.addEventListener('keydown', handleGlobalKeyDown)
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown)
+  }, [])
+
+  const handleFormatCode = useCallback(() => {
+    if (editorRef.current) {
+      editorRef.current.getAction('editor.action.formatDocument')?.run()
+    }
+  }, [])
+
+  const handleResetCode = useCallback(() => {
+    if (window.confirm('¿Restaurar la plantilla inicial del ejercicio? Se perderán los cambios actuales no guardados.')) {
+      const placeholder = getPlaceholder(exercise)
+      setCode(placeholder)
+      if (editorRef.current) {
+        editorRef.current.setValue(placeholder)
+      }
+    }
+  }, [exercise])
+
+  const handleCopyCode = useCallback(() => {
+    const current = editorRef.current?.getValue() || code
+    navigator.clipboard.writeText(current)
+  }, [code])
+
   // Tests state
   const [tests, setTests] = useState(() =>
     (exercise?.tests || []).map(t => ({ ...t, status: 'pending', output: null, diff: null }))
@@ -1331,26 +1389,66 @@ export default function PracticeMode() {
       {/* ── Main 2-column layout ── */}
       <div className="flex flex-1 overflow-hidden relative">
 
-        {/* ── LEFT: Editor ── */}
-        <div className="flex flex-col flex-1 min-w-0 border-r border-zinc-200">
-          {/* Editor */}
-          <div className="flex-1 overflow-hidden">
+        {/* ── LEFT: Editor & Terminal ── */}
+        <div className={clsx(
+          "flex flex-col flex-1 min-w-0 border-r border-zinc-200 transition-all",
+          isFullscreenEditor && "fixed inset-0 z-50 bg-zinc-900"
+        )}>
+          {/* Barra de herramientas IDE (Temas VS Code, Lenguajes, Ajustes) */}
+          <EditorToolbar
+            filename={`${exercise.id}.c`}
+            theme={editorTheme}
+            onThemeChange={(t) => {
+              setEditorTheme(t)
+              localStorage.setItem('42prep-editor-theme', t)
+            }}
+            language={editorLanguage}
+            onLanguageChange={setEditorLanguage}
+            fontSize={editorFontSize}
+            onFontSizeChange={(s) => {
+              setEditorFontSize(s)
+              localStorage.setItem('42prep-editor-fontsize', String(s))
+            }}
+            tabSize={editorTabSize}
+            onTabSizeChange={setEditorTabSize}
+            insertSpaces={editorInsertSpaces}
+            onInsertSpacesChange={setEditorInsertSpaces}
+            minimap={editorMinimap}
+            onMinimapToggle={() => setEditorMinimap(prev => !prev)}
+            wordWrap={editorWordWrap}
+            onWordWrapToggle={() => setEditorWordWrap(prev => prev === 'on' ? 'off' : 'on')}
+            lineNumbers={editorLineNumbers}
+            onLineNumbersToggle={() => setEditorLineNumbers(prev => prev === 'on' ? 'off' : 'on')}
+            onFormatCode={handleFormatCode}
+            onResetCode={handleResetCode}
+            onCopyCode={handleCopyCode}
+            isTerminalOpen={isTerminalOpen}
+            onToggleTerminal={() => setIsTerminalOpen(prev => !prev)}
+            isFullscreen={isFullscreenEditor}
+            onToggleFullscreen={() => setIsFullscreenEditor(prev => !prev)}
+            hasUnsavedChanges={code !== getPlaceholder(exercise)}
+          />
+
+          {/* Monaco Editor Canvas */}
+          <div className="flex-1 overflow-hidden relative">
             <Editor
               height="100%"
-              language="c"
-              theme="vs"
+              language={editorLanguage}
+              theme={editorTheme}
               value={code}
+              beforeMount={handleEditorWillMount}
               onChange={v => setCode(v || '')}
               onMount={editor => { editorRef.current = editor }}
               options={{
-                fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
-                fontSize: isMobile ? 12 : 13,
-                lineHeight: isMobile ? 19 : 20,
-                minimap: { enabled: false },
+                fontFamily: "'JetBrains Mono', 'Fira Code', 'Consolas', monospace",
+                fontSize: isMobile ? 12 : editorFontSize,
+                lineHeight: Math.round((isMobile ? 12 : editorFontSize) * 1.55),
+                minimap: { enabled: editorMinimap },
                 scrollBeyondLastLine: false,
-                tabSize: 4,
-                insertSpaces: false,
-                wordWrap: isMobile ? 'on' : 'off',
+                tabSize: editorTabSize,
+                insertSpaces: editorInsertSpaces,
+                wordWrap: editorWordWrap,
+                lineNumbers: editorLineNumbers,
                 lineNumbersMinChars: isMobile ? 2 : 3,
                 padding: { top: 12, bottom: isMobile ? 20 : 16 },
                 renderLineHighlight: 'line',
@@ -1360,6 +1458,15 @@ export default function PracticeMode() {
               }}
             />
           </div>
+
+          {/* Terminal Interactiva y Depurador Propio */}
+          <InteractiveTerminal
+            code={code}
+            exercise={exercise}
+            filename={`${exercise.id}.c`}
+            isOpen={isTerminalOpen}
+            onClose={() => setIsTerminalOpen(false)}
+          />
 
           {/* Compile error banner */}
           <AnimatePresence>
@@ -1443,6 +1550,20 @@ export default function PracticeMode() {
               >
                 <Microscope size={14} />
                 <span className="hidden lg:inline">Ver ejecución paso a paso</span>
+              </button>
+
+              <button
+                onClick={() => setIsTerminalOpen(prev => !prev)}
+                className={clsx(
+                  'flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold border transition-all shadow-sm',
+                  isTerminalOpen
+                    ? 'bg-emerald-950 text-emerald-300 border-emerald-600'
+                    : 'bg-zinc-100 hover:bg-zinc-200 text-zinc-700 border-zinc-300'
+                )}
+                title="Abrir o cerrar Terminal Interactiva 42 (Ctrl+`)"
+              >
+                <Terminal size={14} className={isTerminalOpen ? 'text-emerald-400' : 'text-zinc-600'} />
+                <span className="hidden sm:inline">Terminal 42</span>
               </button>
 
               <label className="ml-auto flex items-center gap-1.5 text-xs text-zinc-500 cursor-pointer select-none" title="Compilar con -Wall -Wextra -Werror, como la Moulinette del 42">

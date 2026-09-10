@@ -342,6 +342,180 @@ async function startServer() {
     }
   });
 
+  // ─── TERMINAL Y DEPURADOR INTERACTIVO 42 ───
+  const TERMINAL_BASE_DIR = path.join(os.tmpdir(), '42_terminal_workspace');
+  try {
+    if (!fs.existsSync(TERMINAL_BASE_DIR)) {
+      fs.mkdirSync(TERMINAL_BASE_DIR, { recursive: true });
+    }
+  } catch (e) {}
+
+  app.post('/api/terminal/exec', async (req, res) => {
+    try {
+      const {
+        command,
+        code = '',
+        filename = 'solution.c',
+        sessionId = 'user',
+        action = 'custom',
+        args = [],
+        stdin = '',
+        exerciseId = '',
+        tipoEntrega = 'programa',
+      } = req.body;
+
+      const safeSessionId = String(sessionId || 'user').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 32) || 'user';
+      const sessionDir = path.join(TERMINAL_BASE_DIR, safeSessionId);
+      if (!fs.existsSync(sessionDir)) {
+        fs.mkdirSync(sessionDir, { recursive: true });
+      }
+
+      const safeFilename = filename.endsWith('.c') ? filename : `${filename}.c`;
+      const primaryFile = path.join(sessionDir, safeFilename);
+
+      if (code && typeof code === 'string') {
+        fs.writeFileSync(primaryFile, code, 'utf8');
+        if (safeFilename !== 'solution.c') {
+          fs.writeFileSync(path.join(sessionDir, 'solution.c'), code, 'utf8');
+        }
+
+        // Si es una función, creamos un main.c de apoyo si el código no incluye un main
+        if (tipoEntrega === 'funcion' && !code.includes('int main(') && !code.includes('int\tmain(')) {
+          const harnessMain = `/* Main de prueba generado automáticamente para ${exerciseId || 'tu función'} */
+#include <unistd.h>
+#include <stdlib.h>
+#include <stdio.h>
+
+// Declaración de tu función
+${code.match(/[a-zA-Z0-9_*]+\s+[a-zA-Z0-9_]+\s*\([^)]*\)/)?.[0] || 'void ' + (exerciseId || 'solution') + '();'};
+
+int main(int argc, char **argv) {
+    (void)argc;
+    (void)argv;
+    printf("[Main de prueba 42 ejecutado con éxito]\\n");
+    return 0;
+}
+`;
+          fs.writeFileSync(path.join(sessionDir, 'main_test.c'), harnessMain, 'utf8');
+        }
+      }
+
+      // Si la acción es verificación de Norminette 42
+      if (action === 'norm') {
+        const normReport = run42NormCheck(code, safeFilename);
+        let currentFiles: string[] = [];
+        try { currentFiles = fs.readdirSync(sessionDir); } catch (e) {}
+        return res.json({
+          stdout: normReport.stdout,
+          stderr: normReport.stderr,
+          exitCode: normReport.exitCode,
+          signal: null,
+          command: `norminette -R CheckForbiddenSourceHeader ${safeFilename}`,
+          cwd: `~/42_exam/${safeSessionId}`,
+          files: currentFiles,
+        });
+      }
+
+      let cmdToRun = '';
+      const safeArgsStr = Array.isArray(args) ? args.map((a) => `"${String(a).replace(/"/g, '\\"')}"`).join(' ') : '';
+
+      if (action === 'compile') {
+        cmdToRun = `gcc -Wall -Wextra -Werror -std=c99 -g "${safeFilename}" -o solution`;
+      } else if (action === 'run') {
+        cmdToRun = `./solution ${safeArgsStr}`;
+      } else if (action === 'asan') {
+        cmdToRun = `gcc -fsanitize=address -g -O1 -std=c99 "${safeFilename}" -o solution_asan && ./solution_asan ${safeArgsStr}`;
+      } else if (action === 'gdb') {
+        cmdToRun = `gcc -g -O0 -std=c99 "${safeFilename}" -o solution_gdb && gdb --batch -ex "file ./solution_gdb" -ex "set print pretty on" -ex "run ${safeArgsStr}" -ex "where" -ex "info locals" -ex "quit"`;
+      } else {
+        cmdToRun = String(command || '').trim();
+      }
+
+      if (!cmdToRun) {
+        let currentFiles: string[] = [];
+        try { currentFiles = fs.readdirSync(sessionDir); } catch (e) {}
+        return res.json({
+          stdout: '',
+          stderr: 'No se especificó ningún comando.',
+          exitCode: 0,
+          signal: null,
+          command: '',
+          cwd: `~/42_exam/${safeSessionId}`,
+          files: currentFiles,
+        });
+      }
+
+      // Filtro de seguridad
+      const blocked = ['rm -rf /', 'mkfs', 'dd if=', ':(){:|:&};:', 'shutdown', 'reboot', 'chmod -R 777 /', '> /dev/sda'];
+      for (const b of blocked) {
+        if (cmdToRun.includes(b)) {
+          let currentFiles: string[] = [];
+          try { currentFiles = fs.readdirSync(sessionDir); } catch (e) {}
+          return res.json({
+            stdout: '',
+            stderr: `Acceso restringido: '${b}' está prohibido en el entorno de evaluación de 42.`,
+            exitCode: 126,
+            signal: null,
+            command: cmdToRun,
+            cwd: `~/42_exam/${safeSessionId}`,
+            files: currentFiles,
+          });
+        }
+      }
+
+      exec(cmdToRun, {
+        cwd: sessionDir,
+        timeout: 8000,
+        maxBuffer: 512 * 1024,
+        env: {
+          ...process.env,
+          PATH: process.env.PATH + ':/usr/local/bin:/usr/bin:/bin',
+          ASAN_OPTIONS: 'detect_leaks=1:symbolize=1:abort_on_error=0',
+        },
+      }, (error, stdout, stderr) => {
+        let exitCode = 0;
+        let signal: string | number | null = null;
+
+        if (error) {
+          exitCode = typeof error.code === 'number' ? error.code : 1;
+          if (error.killed) {
+            stderr = (stderr ? stderr + '\n' : '') + '⏰ [TIMEOUT]: El comando superó los 8 segundos (posible bucle infinito o espera interactiva).';
+          }
+          if (error.signal) {
+            signal = error.signal;
+          }
+        }
+
+        // Detección de crashes comunes
+        if (exitCode === 139 || stderr.includes('Segmentation fault') || stderr.includes('SIGSEGV')) {
+          if (!stderr.includes('Segmentation fault')) {
+            stderr += '\n⚠️ Segmentation fault (core dumped): Acceso a memoria inválido o puntero NULL.';
+          }
+        }
+
+        let currentFiles: string[] = [];
+        try { currentFiles = fs.readdirSync(sessionDir); } catch (e) {}
+
+        res.json({
+          stdout: stdout || '',
+          stderr: stderr || '',
+          exitCode,
+          signal,
+          command: cmdToRun,
+          cwd: `~/42_exam/${safeSessionId}`,
+          files: currentFiles,
+        });
+      });
+    } catch (err: any) {
+      res.status(500).json({
+        stdout: '',
+        stderr: `Error en la terminal: ${err.message}`,
+        exitCode: 1,
+        signal: null,
+      });
+    }
+  });
+
   // ─── Vite Middleware o Servidor Estático ───
   if (process.env.NODE_ENV !== 'production') {
     const { createServer: createViteServer } = await import('vite');
@@ -370,6 +544,78 @@ interface CompileRequest {
   compilerOptionRaw?: string;
   strictMoulinette?: boolean;
   timeoutMs?: number;
+}
+
+function run42NormCheck(code: string, filename: string = 'solution.c') {
+  const lines = code.split('\n');
+  const errors: string[] = [];
+  const warnings: string[] = [];
+
+  // 1. Longitud de línea > 80 columnas
+  lines.forEach((line, idx) => {
+    const expandedLen = line.replace(/\t/g, '    ').length;
+    if (expandedLen > 80) {
+      errors.push(`Error: LINE_TOO_LONG (line ${idx + 1}, col ${expandedLen}): Línea de ${expandedLen} caracteres (máx. 80 en Norma 42).`);
+    }
+  });
+
+  // 2. Bucles 'for' prohibidos (sólo 'while' en 42)
+  lines.forEach((line, idx) => {
+    const trimmed = line.trim();
+    if (/^for\s*\(/.test(trimmed) || /\s+for\s*\(/.test(line)) {
+      errors.push(`Error: FOR_FORBIDDEN (line ${idx + 1}): Bucle 'for' prohibido por la Norma 42. Debes usar 'while'.`);
+    }
+  });
+
+  // 3. Librerías no permitidas (ej. stdio.h)
+  lines.forEach((line, idx) => {
+    if (/#include\s*<stdio\.h>/.test(line)) {
+      warnings.push(`Warning: FORBIDDEN_INCLUDE (line ${idx + 1}): '<stdio.h>' está prohibido si el ejercicio sólo permite 'write'. Elimina printf antes de la entrega.`);
+    }
+  });
+
+  // 4. Múltiples sentencias en una misma línea
+  lines.forEach((line, idx) => {
+    const cleaned = line.replace(/"[^"]*"/g, '').replace(/'[^']*'/g, '').replace(/\/\/.*$/, '');
+    const semicolons = (cleaned.match(/;/g) || []).length;
+    if (semicolons > 1 && !line.includes('for(')) {
+      warnings.push(`Warning: MULTIPLE_STATEMENTS (line ${idx + 1}): Más de una instrucción en la misma línea.`);
+    }
+  });
+
+  // 5. Tamaño de función (> 25 líneas)
+  let insideFunc = false;
+  let funcLines = 0;
+  let funcName = '';
+  lines.forEach((line, idx) => {
+    if (/^[a-zA-Z0-9_*]+\s+([a-zA-Z0-9_]+)\s*\([^)]*\)\s*\{?/.test(line)) {
+      insideFunc = true;
+      funcLines = 0;
+      funcName = line.match(/[a-zA-Z0-9_]+\s*\(/)?.[0] || 'función';
+    } else if (insideFunc) {
+      if (line.trim() === '}') {
+        if (funcLines > 25) {
+          errors.push(`Error: TOO_MANY_LINES (line ${idx + 1}): ${funcName} tiene ${funcLines} líneas (el límite de la Norma 42 son 25 líneas por función).`);
+        }
+        insideFunc = false;
+      } else {
+        funcLines++;
+      }
+    }
+  });
+
+  const exitCode = errors.length > 0 ? 1 : 0;
+  let stdout = `${filename}: OK! (Cumple la Norma 42)\n`;
+  if (errors.length > 0) {
+    stdout = `${filename}: KO por Norma!\n` + errors.map((e) => `  ${e}`).join('\n');
+  }
+
+  let stderr = '';
+  if (warnings.length > 0) {
+    stderr = warnings.map((w) => `  ${w}`).join('\n');
+  }
+
+  return { stdout, stderr, exitCode };
 }
 
 function compileAndRunLocal(params: CompileRequest): Promise<any> {
