@@ -73,6 +73,18 @@ export default function AlgorithmThinkingGuide({ exercise }) {
           </div>
         </div>
 
+        {/* Firma Oficial / Prototipo de C */}
+        <div className="p-3 bg-zinc-950 text-zinc-100 rounded-xl border border-zinc-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <Terminal size={14} className="text-emerald-400 shrink-0" />
+            <span className="text-[11px] uppercase tracking-wider font-bold text-zinc-400">Prototipo formal:</span>
+            <code className="text-xs font-mono font-bold text-emerald-400">{blueprint.prototype}</code>
+          </div>
+          <span className="text-[10px] font-mono text-zinc-400 bg-zinc-900 px-2 py-0.5 rounded border border-zinc-800 self-start sm:self-auto">
+            {isProgram ? 'Programa con main()' : 'Función de librería'}
+          </span>
+        </div>
+
         {/* Explicación de la Naturaleza (Programa vs Función) */}
         <div
           className={clsx(
@@ -103,25 +115,85 @@ export default function AlgorithmThinkingGuide({ exercise }) {
         </div>
       </div>
 
-      {/* ─── 2. Contrato de Entrada y Salida ─── */}
-      <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-xs space-y-3">
-        <div className="flex items-center gap-2">
-          <Box size={18} className="text-zinc-700" />
-          <h4 className="font-bold text-sm text-zinc-900">1. Contrato de Entrada, Salida y Regla de Oro</h4>
+      {/* ─── 2. Contrato de Entrada y Salida Específico ─── */}
+      <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-xs space-y-4">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <Box size={18} className="text-indigo-600" />
+            <h4 className="font-bold text-sm text-zinc-900">1. Contrato de Parámetros, Memoria y Salida</h4>
+          </div>
+          <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-zinc-100 text-zinc-600 uppercase">
+            100% específico para {exercise?.nombre}
+          </span>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-          <div className="p-3.5 rounded-xl bg-zinc-50 border border-zinc-200 space-y-1">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600 block">¿Qué recibe?</span>
-            <p className="font-medium text-zinc-800">{blueprint.inputOutput.input}</p>
+        {/* Grid de Parámetros de Entrada Específicos */}
+        <div className="space-y-2">
+          <span className="text-xs font-bold uppercase tracking-wider text-blue-700 block">
+            📥 ¿Qué recibe formalmente? (Tipos de datos, parámetros y por qué)
+          </span>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+            {blueprint.inputDataTypes && blueprint.inputDataTypes.length > 0 ? (
+              blueprint.inputDataTypes.map((param, idx) => (
+                <div key={idx} className="p-3.5 rounded-xl bg-blue-50/40 border border-blue-200/80 space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <code className="font-mono font-bold text-blue-900 bg-blue-100/80 px-2 py-0.5 rounded text-xs">
+                      {param.param}
+                    </code>
+                    <span className="text-[10px] font-semibold text-blue-700 bg-white px-2 py-0.5 rounded-full border border-blue-200">
+                      {param.type}
+                    </span>
+                  </div>
+                  <p className="text-zinc-700 leading-relaxed">
+                    {param.explanation}
+                  </p>
+                  <div className="text-[11px] text-zinc-600 pt-1.5 border-t border-blue-100 space-y-1">
+                    <p><strong className="text-zinc-800">¿Por qué este tipo en C?:</strong> {param.whyThisType}</p>
+                    <p><strong className="text-blue-800">Concepto clave:</strong> {param.keyConcept}</p>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="p-3.5 rounded-xl bg-blue-50/40 border border-blue-200/80 space-y-1 col-span-2">
+                <code className="font-mono font-bold text-blue-900">{blueprint.signature || 'Parámetros formales'}</code>
+                <p className="text-zinc-700">{blueprint.inputOutput?.input}</p>
+              </div>
+            )}
           </div>
-          <div className="p-3.5 rounded-xl bg-zinc-50 border border-zinc-200 space-y-1">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 block">¿Qué debe emitir?</span>
-            <p className="font-medium text-zinc-800">{blueprint.inputOutput.output}</p>
+        </div>
+
+        {/* Grid de Transformación y Salida */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs pt-2">
+          <div className="p-3.5 rounded-xl bg-emerald-50/40 border border-emerald-200/80 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold uppercase tracking-wider text-emerald-700 block">
+                📤 ¿Qué transforma y qué devuelve?
+              </span>
+              <span className="font-mono text-[11px] font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800">
+                {blueprint.outputDataTypes?.returnType || blueprint.inputOutput?.output}
+              </span>
+            </div>
+            <p className="text-zinc-700 leading-relaxed">
+              {blueprint.outputDataTypes?.whatItTransforms || blueprint.inputOutput?.output}
+            </p>
+            {blueprint.outputDataTypes?.whyReturn && (
+              <p className="text-[11px] text-emerald-900 pt-1 border-t border-emerald-100">
+                <strong>¿Por qué este retorno?:</strong> {blueprint.outputDataTypes.whyReturn}
+              </p>
+            )}
           </div>
-          <div className="p-3.5 rounded-xl bg-amber-50/70 border border-amber-200 space-y-1">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-amber-700 block">Regla de Oro</span>
-            <p className="font-medium text-amber-900">{blueprint.inputOutput.goldenRule}</p>
+
+          <div className="p-3.5 rounded-xl bg-amber-50/60 border border-amber-200/80 space-y-2">
+            <span className="text-xs font-bold uppercase tracking-wider text-amber-800 block">
+              ⭐ Regla de Oro Inquebrantable
+            </span>
+            <p className="font-medium text-amber-950 leading-relaxed">
+              {blueprint.goldenRule || blueprint.inputOutput?.goldenRule}
+            </p>
+            <p className="text-[11px] text-amber-800 pt-1 border-t border-amber-200/50">
+              Cualquier solución que viole esta regla fallará en Moulinette o provocará un crash en runtime.
+            </p>
           </div>
         </div>
       </div>
@@ -179,6 +251,13 @@ export default function AlgorithmThinkingGuide({ exercise }) {
               <p className="text-xs sm:text-sm text-zinc-700 leading-relaxed">
                 {stepData.desc}
               </p>
+
+              {stepData.why && (
+                <div className="p-2.5 rounded-lg bg-white border border-indigo-100 text-xs text-indigo-950 flex items-start gap-2">
+                  <span className="font-bold text-indigo-600 shrink-0">💡 ¿Por qué?</span>
+                  <p>{stepData.why}</p>
+                </div>
+              )}
 
               <div className="space-y-1">
                 <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">Traducción a C:</span>
@@ -267,29 +346,79 @@ export default function AlgorithmThinkingGuide({ exercise }) {
       </div>
 
       {/* ─── 6. Trampas Frecuentes y Puntos de Segfault ─── */}
-      <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-xs space-y-3">
-        <div className="flex items-center gap-2">
-          <ShieldAlert size={18} className="text-red-500" />
-          <h4 className="font-bold text-sm text-zinc-900">5. Trampas Críticas y Casos Extremos en Examen</h4>
+      <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-xs space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <ShieldAlert size={18} className="text-red-500" />
+            <h4 className="font-bold text-sm text-zinc-900">5. Trampas Críticas y Casos Extremos en Examen</h4>
+          </div>
+          <span className="text-[10px] font-mono text-zinc-400">
+            {blueprint.fatalTraps.length} trampas analizadas
+          </span>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          {blueprint.fatalTraps.map((trap, i) => (
-            <div key={i} className="p-3.5 rounded-xl border border-red-100 bg-red-50/40 space-y-2 text-xs">
-              <h5 className="font-bold text-red-900 flex items-center gap-1.5">
-                <span className="h-4 w-4 rounded-full bg-red-200 text-red-800 flex items-center justify-center text-[10px] font-bold shrink-0">
-                  !
-                </span>
-                <span className="truncate">{trap.name.split('(')[0]}</span>
-              </h5>
-              <p className="text-[11px] text-zinc-600">
-                <strong className="text-zinc-800">Causa:</strong> {trap.cause}
-              </p>
-              <div className="p-2 rounded-lg bg-white border border-red-200 text-emerald-800 text-[11px] font-medium">
-                <strong>Solución:</strong> {trap.cure}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+          {blueprint.fatalTraps.map((trap, i) => {
+            const isMortal = trap.severity === 'mortal'
+            return (
+              <div
+                key={i}
+                className={clsx(
+                  'p-4 rounded-xl border space-y-2.5 text-xs',
+                  isMortal ? 'border-red-200 bg-red-50/40' : 'border-amber-200 bg-amber-50/40'
+                )}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <h5 className="font-bold text-zinc-900 flex items-center gap-1.5 text-xs sm:text-sm">
+                    <span
+                      className={clsx(
+                        'h-4 w-4 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0',
+                        isMortal ? 'bg-red-200 text-red-800' : 'bg-amber-200 text-amber-800'
+                      )}
+                    >
+                      !
+                    </span>
+                    <span>{trap.name}</span>
+                  </h5>
+                  <span
+                    className={clsx(
+                      'text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border shrink-0',
+                      isMortal
+                        ? 'bg-red-100 text-red-700 border-red-200'
+                        : 'bg-amber-100 text-amber-700 border-amber-200'
+                    )}
+                  >
+                    {isMortal ? 'Mortal (Segfault/Crash)' : 'Advertencia (WA)'}
+                  </span>
+                </div>
+
+                <p className="text-zinc-700 leading-relaxed text-xs">
+                  <strong className="text-zinc-900">Causa / Escenario:</strong> {trap.cause}
+                </p>
+
+                {(trap.badCode || trap.goodCode) && (
+                  <div className="space-y-1.5 pt-1">
+                    {trap.badCode && (
+                      <div className="rounded-lg bg-zinc-950 p-2.5 font-mono text-[11px] text-red-400 border border-red-950/60 overflow-x-auto">
+                        <span className="text-[10px] uppercase font-bold text-red-500 block mb-1">❌ Código con trampa:</span>
+                        <code>{trap.badCode}</code>
+                      </div>
+                    )}
+                    {trap.goodCode && (
+                      <div className="rounded-lg bg-zinc-950 p-2.5 font-mono text-[11px] text-emerald-400 border border-emerald-950/60 overflow-x-auto">
+                        <span className="text-[10px] uppercase font-bold text-emerald-500 block mb-1">✅ Corrección segura:</span>
+                        <code>{trap.goodCode}</code>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <div className="p-2.5 rounded-lg bg-white border border-zinc-200/80 text-zinc-800 text-[11px] font-medium">
+                  <strong className="text-emerald-700">Prevención:</strong> {trap.cure}
+                </div>
               </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       </div>
 

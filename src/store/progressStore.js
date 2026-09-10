@@ -50,23 +50,23 @@ function calcularProximaRepasion(intentos, exito) {
 
 const saveToFirestore = async (id, data) => {
   const user = auth?.currentUser
-  if (!isConfigured || !db || !user) return
+  if (!isConfigured || !db || !user || !user.uid) return
   try {
     const docRef = doc(db, `users/${user.uid}/progress`, id)
     await setDoc(docRef, data, { merge: true })
   } catch (error) {
-    console.error('Error al guardar progreso en Firestore:', error)
+    console.warn('Notice al guardar progreso en Firestore:', error?.message)
   }
 }
 
 const saveProfileToFirestore = async (profileData) => {
   const user = auth?.currentUser
-  if (!isConfigured || !db || !user) return
+  if (!isConfigured || !db || !user || !user.uid) return
   try {
     const docRef = doc(db, `users/${user.uid}`)
     await setDoc(docRef, profileData, { merge: true })
   } catch (error) {
-    console.error('Error al guardar perfil en Firestore:', error)
+    console.warn('Notice al guardar perfil en Firestore:', error?.message)
   }
 }
 

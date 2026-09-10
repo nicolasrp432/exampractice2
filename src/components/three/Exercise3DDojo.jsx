@@ -1,6 +1,7 @@
 import { useState } from 'react'
-import { Box, Layers, Cpu, Code2, Sparkles, RefreshCw, Eye } from 'lucide-react'
+import { Box, Layers, Cpu, Sparkles, Eye, Info, MousePointer } from 'lucide-react'
 import clsx from 'clsx'
+import { getExerciseThinkingBlueprint } from '@/data/exerciseThinkingRegistry'
 
 // 3D Visualizer Engines
 import VoxelGrid3D from './VoxelGrid3D'
@@ -12,63 +13,52 @@ import BitSwitches3D from './BitSwitches3D'
 import LinkedList3D from './LinkedList3D'
 import StackFrames3DVisualizer from './StackFrames3DVisualizer'
 import Memory3DVisualizer from './Memory3DVisualizer'
+import StringMutator3D from './StringMutator3D'
 
 /**
  * Motor Central de Visualización 3D Personalizado por Ejercicio.
- * Detecta la naturaleza exacta del problema (Bits, Listas, Recursión 2D, Tabla ASCII,
- * Escaneo de Palabras, Factores Primos, Heap Malloc, o Punteros) y renderiza
- * la maqueta 3D interactiva correspondiente alimentada con los datos reales del ejercicio.
+ * Utiliza el blueprint conceptual del ejercicio para configurar la maqueta 3D interactiva,
+ * adaptando el modelo físico en memoria (Bits, Listas enlazadas, Vóxeles DFS,
+ * Tabla ASCII O(1), Escáner de Palabras, Factores de ALU o Memoria Heap).
  */
 export default function Exercise3DDojo({ exercise }) {
   const [viewMode, setViewMode] = useState('algorithm') // 'algorithm' | 'memory' | 'stack'
+  const [showLegend, setShowLegend] = useState(true)
 
   if (!exercise) return null
 
+  const blueprint = getExerciseThinkingBlueprint(exercise)
+  const threeConfig = blueprint.threeConfig
   const id = exercise.id || ''
 
-  // 1. Clasificación del dominio del ejercicio
-  const isVoxelGrid = id === 'flood_fill'
-  const isBitwise = ['print_bits', 'reverse_bits', 'swap_bits', 'is_power_of_2'].includes(id)
-  const isLinkedList = ['ft_list_size', 'ft_list_foreach', 'ft_list_remove_if', 'sort_list'].includes(id)
-  const isAsciiTable = ['inter', 'union', 'wdmatch', 'hidenp'].includes(id)
-  const isMathReactor = ['fprime', 'pgcd', 'lcm', 'add_prime_sum', 'print_hex', 'tab_mult', 'fizzbuzz'].includes(id)
-  const isArrayBars = ['sort_int_tab', 'max', 'ft_range', 'ft_rrange', 'ft_atoi', 'ft_atoi_base', 'ft_itoa'].includes(id)
-  const isWordScanner = [
-    'first_word', 'last_word', 'epur_str', 'expand_str',
-    'rostring', 'rev_wstr', 'ft_split', 'str_capitalizer',
-    'rstr_capitalizer', 'camel_to_snake', 'snake_to_camel',
-  ].includes(id)
+  // 1. Extraer datos reales de prueba del ejercicio
+  const tests = exercise.tests || []
+  const validTest = tests.find(t => t.entrada && t.entrada.length > 0) || tests[0]
+  const rawArg1 = validTest?.entrada?.[0]
+  const rawArg2 = validTest?.entrada?.[1]
 
-  // 2. Extraer datos de muestra del ejercicio
-  const test1 = exercise.tests?.[0]
-  const rawArg1 = test1?.entrada?.[0]
-  const rawArg2 = test1?.entrada?.[1]
-
-  const sampleText = typeof rawArg1 === 'string' ? rawArg1 : '42 Madrid'
+  const sampleText = typeof rawArg1 === 'string' && rawArg1.length > 0 ? rawArg1 : '42 Madrid'
   const sampleNum = typeof rawArg1 === 'number' ? rawArg1 : parseInt(rawArg1) || 42
   const sampleNumB = typeof rawArg2 === 'number' ? rawArg2 : parseInt(rawArg2) || 18
 
-  // Descriptor del tipo de estructura
-  const getStructureType = () => {
-    if (isVoxelGrid) return 'char **tab (Matriz 2D + t_point)'
-    if (isBitwise) return 'unsigned char (8 bits / byte)'
-    if (isLinkedList) return 't_list * (Nodos enlazados)'
-    if (isAsciiTable) return 'int seen[256] (Tabla de búsqueda O(1))'
-    if (isMathReactor) return 'int / uint (Aritmética & Factores)'
-    if (isArrayBars) return 'int *tab (Heap Array en Memoria)'
-    if (isWordScanner) return 'char * (Punteros a palabras & \\0)'
-    return 'char * (Cadena de caracteres)'
-  }
+  const modelType = threeConfig.modelType
 
   return (
-    <div className="space-y-3">
-      {/* Selector de perspectiva 3D */}
+    <div className="space-y-4">
+      {/* ── Barra Superior de Control y Perspectiva 3D ── */}
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div className="flex items-center gap-2">
-          <Box size={18} className="text-indigo-600" />
-          <h3 className="font-bold text-sm text-zinc-900">
-            Laboratorio 3D Personalizado
-          </h3>
+          <div className="w-7 h-7 rounded-lg bg-indigo-100 flex items-center justify-center text-indigo-700">
+            <Box size={16} />
+          </div>
+          <div>
+            <h3 className="font-bold text-sm text-zinc-900 leading-none">
+              Laboratorio 3D Personalizado
+            </h3>
+            <p className="text-[11px] text-zinc-500 mt-0.5">
+              {threeConfig.conceptTitle}
+            </p>
+          </div>
         </div>
 
         <div className="flex items-center gap-1 bg-zinc-100 p-1 rounded-xl border border-zinc-200 text-xs font-medium">
@@ -94,7 +84,7 @@ export default function Exercise3DDojo({ exercise }) {
             )}
           >
             <Cpu size={13} />
-            <span>Celdas Hex (0x7ffd)</span>
+            <span>Celdas Hex (RAM)</span>
           </button>
           <button
             onClick={() => setViewMode('stack')}
@@ -111,65 +101,116 @@ export default function Exercise3DDojo({ exercise }) {
         </div>
       </div>
 
-      {/* Subtítulo con tipo de dato en memoria */}
-      <div className="flex items-center justify-between text-[11px] px-1 text-zinc-500">
-        <span className="font-semibold uppercase tracking-wider text-zinc-400">
-          Estructura Física en C:
-        </span>
-        <span className="font-mono bg-zinc-100 px-2 py-0.5 rounded text-zinc-700 border border-zinc-200">
-          {getStructureType()}
-        </span>
+      {/* ── Ficha Pedagógica de la Estructura en Memoria ── */}
+      <div className="rounded-xl border border-indigo-100 bg-indigo-50/40 p-3.5 space-y-2.5">
+        <div className="flex items-start justify-between gap-2">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-indigo-950 uppercase tracking-wide">
+                Estructura Física en C:
+              </span>
+              <span className="font-mono text-xs bg-white text-indigo-800 px-2 py-0.5 rounded-md border border-indigo-200 font-semibold">
+                {threeConfig.structureType}
+              </span>
+            </div>
+            <p className="text-xs text-zinc-600 leading-relaxed">
+              {threeConfig.conceptDesc}
+            </p>
+          </div>
+          <button
+            onClick={() => setShowLegend(s => !s)}
+            className="text-[11px] text-indigo-600 hover:text-indigo-800 font-semibold shrink-0"
+          >
+            {showLegend ? 'Ocultar leyenda' : 'Ver leyenda 3D'}
+          </button>
+        </div>
+
+        {/* Leyenda interactiva de entidades 3D */}
+        {showLegend && threeConfig.visualEntities && threeConfig.visualEntities.length > 0 && (
+          <div className="pt-2 border-t border-indigo-100/80 flex flex-wrap gap-2">
+            {threeConfig.visualEntities.map((entity, idx) => (
+              <div
+                key={idx}
+                className="flex items-center gap-1.5 bg-white px-2 py-1 rounded-lg border border-indigo-100 text-[11px] text-zinc-700 shadow-2xs"
+              >
+                <span className={clsx('w-2.5 h-2.5 rounded-full shrink-0', entity.color)} />
+                <span className="font-semibold text-zinc-900">{entity.label}:</span>
+                <span className="text-zinc-500">{entity.desc}</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {threeConfig.keyObservation && (
+          <div className="text-[11px] text-indigo-900/80 bg-white/70 rounded-lg p-2 border border-indigo-100/60 flex items-start gap-1.5">
+            <Info size={13} className="text-indigo-600 shrink-0 mt-0.5" />
+            <span><strong className="font-semibold text-indigo-950">Observación Clave:</strong> {threeConfig.keyObservation}</span>
+          </div>
+        )}
       </div>
 
-      {/* Renderizado de la vista seleccionada */}
-      {viewMode === 'algorithm' && (
-        <>
-          {isVoxelGrid && <VoxelGrid3D initialExercise={exercise} />}
-          {isBitwise && <BitSwitches3D initialValue={sampleNum} />}
-          {isLinkedList && <LinkedList3D initialValues={[42, 13, 7, 99]} />}
-          {isAsciiTable && (
-            <AsciiTable3D
-              exerciseId={id}
-              initialS1={typeof rawArg1 === 'string' ? rawArg1 : 'padinton'}
-              initialS2={typeof rawArg2 === 'string' ? rawArg2 : 'paqefwtdjetyiytjneytjoeyjnejeyj'}
-            />
-          )}
-          {isMathReactor && (
-            <MathReactor3D
-              exerciseId={id}
-              initialNum={sampleNum}
-              initialNumB={sampleNumB}
-            />
-          )}
-          {isArrayBars && (
-            <ArrayBars3D
-              exerciseId={id}
-              initialValues={Array.isArray(rawArg1) ? rawArg1 : [42, 13, 7, 99, 25, -4, 58, 3]}
-            />
-          )}
-          {isWordScanner && (
-            <WordScanner3D
-              exerciseId={id}
-              initialText={sampleText}
-            />
-          )}
-          {/* Default string/memory visualizer para otros ejercicios de strings directos */}
-          {!isVoxelGrid && !isBitwise && !isLinkedList && !isAsciiTable && !isMathReactor && !isArrayBars && !isWordScanner && (
-            <Memory3DVisualizer initialType="string" initialText={sampleText} />
-          )}
-        </>
-      )}
+      {/* ── Renderizado 3D Interactivo ── */}
+      <div className="relative rounded-2xl overflow-hidden border border-zinc-200 bg-zinc-950 min-h-[380px]">
+        {viewMode === 'algorithm' && (
+          <>
+            {modelType === 'voxel' && <VoxelGrid3D initialExercise={exercise} />}
+            {modelType === 'bitwise' && <BitSwitches3D initialValue={sampleNum} />}
+            {modelType === 'linked_list' && <LinkedList3D initialValues={[42, 13, 7, 99]} />}
+            {modelType === 'ascii_table' && (
+              <AsciiTable3D
+                exerciseId={id}
+                initialS1={typeof rawArg1 === 'string' ? rawArg1 : 'padinton'}
+                initialS2={typeof rawArg2 === 'string' ? rawArg2 : 'paqefwtdjetyiytjneytjoeyjnejeyj'}
+              />
+            )}
+            {modelType === 'math_reactor' && (
+              <MathReactor3D
+                exerciseId={id}
+                initialNum={sampleNum}
+                initialNumB={sampleNumB}
+              />
+            )}
+            {modelType === 'array_bars' && (
+              <ArrayBars3D
+                exerciseId={id}
+                initialValues={Array.isArray(rawArg1) ? rawArg1 : [42, 13, 7, 99, 25, -4, 58, 3]}
+              />
+            )}
+            {modelType === 'word_scanner' && (
+              <WordScanner3D
+                exerciseId={id}
+                initialText={sampleText}
+              />
+            )}
+            {modelType === 'string_mutator' && (
+              <StringMutator3D
+                operation={threeConfig.operation || id}
+                initialText={sampleText}
+              />
+            )}
+            {modelType === 'memory_cells' && (
+              <Memory3DVisualizer initialType="string" initialText={sampleText} />
+            )}
+          </>
+        )}
 
-      {viewMode === 'memory' && (
-        <Memory3DVisualizer
-          initialType={isBitwise ? 'array' : 'string'}
-          initialText={sampleText}
-        />
-      )}
+        {viewMode === 'memory' && (
+          <Memory3DVisualizer
+            initialType={modelType === 'bitwise' ? 'array' : 'string'}
+            initialText={sampleText}
+          />
+        )}
 
-      {viewMode === 'stack' && (
-        <StackFrames3DVisualizer />
-      )}
+        {viewMode === 'stack' && (
+          <StackFrames3DVisualizer />
+        )}
+
+        {/* Tip flotante de navegación 3D */}
+        <div className="absolute bottom-2 left-2 z-10 pointer-events-none flex items-center gap-1.5 bg-zinc-900/80 backdrop-blur-xs text-zinc-300 text-[10px] px-2.5 py-1 rounded-full border border-zinc-700">
+          <MousePointer size={11} className="text-zinc-400" />
+          <span>Arrastra para rotar · Rueda para zoom · Clic para interactuar</span>
+        </div>
+      </div>
     </div>
   )
 }

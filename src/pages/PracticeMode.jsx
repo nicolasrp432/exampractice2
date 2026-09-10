@@ -27,6 +27,7 @@ import AiTutorPanel from '@/components/practice/AiTutorPanel'
 import DojoLadder from '@/components/dojo/DojoLadder'
 import AlgorithmThinkingGuide from '@/components/exercise/AlgorithmThinkingGuide'
 import Exercise3DDojo from '@/components/three/Exercise3DDojo'
+import MainTestingLab from '@/components/practice/MainTestingLab'
 
 // ─── Default placeholder code ────────────────────────────────────────────────
 function getPlaceholder(exercise) {
@@ -1240,6 +1241,14 @@ export default function PracticeMode() {
             tests={tests}
           />
         )
+      case 'main':
+        return (
+          <MainTestingLab
+            exercise={exercise}
+            userCode={code}
+            onUseCode={handleUseSolution}
+          />
+        )
       default:
         return null
     }
@@ -1520,6 +1529,18 @@ export default function PracticeMode() {
                 </span>
               </button>
               <button
+                onClick={() => setActiveTab('main')}
+                className={clsx(
+                  'px-3 py-3 text-xs font-semibold flex items-center justify-center gap-1.5 border-b-2 transition-all duration-200 focus:outline-none whitespace-nowrap',
+                  activeTab === 'main'
+                    ? 'border-amber-600 text-amber-900 bg-white font-bold'
+                    : 'border-transparent text-zinc-500 hover:text-zinc-800 hover:bg-zinc-100/50'
+                )}
+              >
+                <Code2 size={14} className="text-amber-600" />
+                Main Lab
+              </button>
+              <button
                 onClick={() => setActiveTab('run')}
                 className={clsx(
                   'px-3 py-3 text-xs font-semibold flex items-center justify-center gap-1.5 border-b-2 transition-all duration-200 focus:outline-none whitespace-nowrap',
@@ -1695,6 +1716,17 @@ export default function PracticeMode() {
             </button>
 
             <button
+              onClick={() => setActiveMobileTab(t => t === 'main' ? null : 'main')}
+              className={clsx(
+                "flex flex-col items-center gap-0.5 py-1 px-2 text-[10px] font-semibold transition-all rounded-xl min-w-[50px]",
+                activeMobileTab === 'main' ? "text-amber-800 bg-amber-50 font-bold" : "text-zinc-500"
+              )}
+            >
+              <Code2 size={15} className={activeMobileTab === 'main' ? 'text-amber-600' : 'text-zinc-500'} />
+              <span>Main Lab</span>
+            </button>
+
+            <button
               onClick={() => setActiveMobileTab(t => t === 'run' ? null : 'run')}
               className={clsx(
                 "flex flex-col items-center gap-0.5 py-1 px-2 text-[10px] font-semibold transition-all rounded-xl min-w-[50px]",
@@ -1750,6 +1782,7 @@ export default function PracticeMode() {
                     {activeMobileTab === 'enunciado' && 'Enunciado del Ejercicio'}
                     {activeMobileTab === 'dojo3d' && 'Dojo & Laboratorio 3D'}
                     {activeMobileTab === 'moulinette' && `Moulinette (${passedCount}/${tests.length} superados)`}
+                    {activeMobileTab === 'main' && 'Laboratorio de Main & Testing'}
                     {activeMobileTab === 'run' && 'Parámetros y Ejecución Custom'}
                     {activeMobileTab === 'mnemotecnia' && 'Método Campayo'}
                     {activeMobileTab === 'tutor' && 'Tutor AI Inteligente'}

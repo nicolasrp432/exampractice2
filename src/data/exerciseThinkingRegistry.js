@@ -2,6 +2,7 @@
  * Registro de Razonamiento Lógico, Enfoque Algorítmico, Patrones y Modelos Mentales
  * Personalizados para cada ejercicio y arquetipo de la escuela 42 (Rank 02).
  */
+import { EXERCISE_CONTRACTS, buildDynamicExerciseContract } from './exerciseThinkingContracts'
 
 // Definición de arquetipos algorítmicos
 export const PATTERN_ARCHETYPES = {
@@ -680,6 +681,215 @@ export function getExerciseThinkingBlueprint(exercise) {
     { human: 'Condición de parada', c: isList ? 'curr == NULL' : "str[i] == '\\0'", note: 'Centinela de fin' },
   ]
 
+  // Configuración 3D específica y adaptativa por ejercicio
+  const threeConfig = SPECIFIC_BLUEPRINTS[id]?.threeConfig || (() => {
+    if (['ft_strlen', 'ft_swap', 'rotone', 'rot_13', 'repeat_alpha', 'search_and_replace', 'ulstr', 'alpha_mirror', 'ft_strrev', 'ft_strcpy', 'ft_strcmp', 'ft_putstr'].includes(id)) {
+      return {
+        modelType: 'string_mutator',
+        operation: id,
+        structureType: id === 'ft_swap' ? 'int *a, int *b (Punteros a la Pila / Stack)' : 'char * (C-String y Transformación de Bytes)',
+        conceptTitle: id === 'ft_swap' ? 'Intercambio de Memoria 3D (Punteros & Swap)' : `Laboratorio 3D: Mutación de Caracteres (${id})`,
+        conceptDesc: id === 'ft_swap'
+          ? 'Visualiza dos celdas de memoria física y el uso de una variable temporal intermedia para intercambiar sus valores sin colisión.'
+          : 'Representación 3D de cada carácter y su mutación o conteo paso a paso en memoria contigua.',
+        visualEntities: id === 'ft_swap' ? [
+          { label: 'Puntero *a', color: 'bg-indigo-500', desc: 'Primera dirección de memoria' },
+          { label: 'Puntero *b', color: 'bg-emerald-500', desc: 'Segunda dirección de memoria' },
+          { label: 'Temporal tmp', color: 'bg-amber-500', desc: 'Preservación del valor en la pila' },
+        ] : [
+          { label: 'Carácter Activo', color: 'bg-emerald-500', desc: 'Byte examinado o transformado' },
+          { label: 'Búfer de Memoria', color: 'bg-blue-500', desc: 'C-String contiguo en RAM' },
+          { label: 'Centinela \\0', color: 'bg-rose-500', desc: '0x00 que detiene el bucle' },
+        ],
+        keyObservation: id === 'ft_swap'
+          ? 'Asignar *a = *b antes de guardar *a destruye su contenido original para siempre.'
+          : 'El byte nulo marca el límite estricto de lectura sin desbordar el búfer.',
+      }
+    }
+    if (archetype.id === 'RECURSIVE_DFS_FLOODFILL' || id === 'flood_fill') {
+      return {
+        modelType: 'voxel',
+        structureType: 'char **tab (Matriz 2D + t_point)',
+        conceptTitle: 'Vóxeles 3D y Árbol de Recursión DFS',
+        conceptDesc: 'Visualiza la matriz bidimensional como una cuadrícula de vóxeles en 3D. Cada llamada a flood_fill comprueba los 4 vecinos y sustituye el color original.',
+        visualEntities: [
+          { label: 'Cubo Base', color: 'bg-zinc-400', desc: 'Vóxel sin modificar con carácter original' },
+          { label: 'Cubo Inundado', color: 'bg-emerald-500', desc: 'Vóxel rellenado con el nuevo carácter' },
+          { label: 'Pared / Límite', color: 'bg-rose-500', desc: 'Coordenadas fuera de rango (0..size)' },
+        ],
+        keyObservation: 'Observa cómo el algoritmo se ramifica en cruz (+X, -X, +Y, -Y) acumulando llamadas en la pila.',
+      }
+    }
+    if (archetype.id === 'BITWISE_HARDWARE' || ['print_bits', 'reverse_bits', 'swap_bits', 'is_power_of_2'].includes(id)) {
+      return {
+        modelType: 'bitwise',
+        structureType: 'unsigned char (8 bits en registro de CPU)',
+        conceptTitle: 'Registro Binario de 8 Bits en 3D',
+        conceptDesc: 'Representación tridimensional de los 8 flip-flops de un byte. Muestra el efecto de operaciones bit a bit (&, |, ^, <<, >>).',
+        visualEntities: [
+          { label: 'Bit Activo (1)', color: 'bg-emerald-500', desc: 'Flag binario en nivel alto (1)' },
+          { label: 'Bit Inactivo (0)', color: 'bg-zinc-300', desc: 'Flag binario en nivel bajo (0)' },
+          { label: 'Cursor de Máscara', color: 'bg-indigo-500', desc: 'Posición examinada (1 << i)' },
+        ],
+        keyObservation: 'Comprueba cómo se alteran o imprimen los bits sin operaciones aritméticas complejas.',
+      }
+    }
+    if (archetype.id === 'LINKED_LIST_POINTERS' || ['ft_list_size', 'ft_list_foreach', 'ft_list_remove_if', 'sort_list'].includes(id)) {
+      return {
+        modelType: 'linked_list',
+        structureType: 't_list * (Nodos enlazados en Heap)',
+        conceptTitle: 'Grafo de Nodos Enlazados en Memoria Dinámica',
+        conceptDesc: 'Nodos dispersos en el Heap. Cada nodo almacena un puntero genérico (void *data) y la dirección del siguiente nodo (->next).',
+        visualEntities: [
+          { label: 'Nodo t_list', color: 'bg-indigo-500', desc: 'Estructura en memoria con data y next' },
+          { label: 'Puntero Next', color: 'bg-sky-400', desc: 'Flecha que enlaza al siguiente bloque' },
+          { label: 'Centinela NULL', color: 'bg-rose-500', desc: 'Dirección 0x00 que marca el final de la lista' },
+        ],
+        keyObservation: 'Nota que perder el puntero al siguiente nodo antes de liberar el actual provoca un Memory Leak.',
+      }
+    }
+    if (archetype.id === 'ASCII_HASH_TABLE_O1' || ['inter', 'union', 'wdmatch', 'hidenp'].includes(id)) {
+      return {
+        modelType: 'ascii_table',
+        structureType: 'int seen[256] (Tabla de direccionamiento directo O(1))',
+        conceptTitle: 'Matriz Tridimensional de Memoria ASCII O(1)',
+        conceptDesc: '256 casillas en el Stack indexadas por el valor numérico del carácter ASCII (0 a 255). Permite comprobar pertenencia al instante.',
+        visualEntities: [
+          { label: 'Casilla No Vista', color: 'bg-zinc-300', desc: 'Valor 0 en seen[c]' },
+          { label: 'Casilla Registrada', color: 'bg-amber-500', desc: 'Valor 1: carácter ya procesado' },
+          { label: 'Puntero de Escaneo', color: 'bg-indigo-500', desc: 'Byte actual de s1 o s2' },
+        ],
+        keyObservation: 'El acceso directo por índice seen[(unsigned char)s[i]] elimina por completo los bucles anidados lentos.',
+      }
+    }
+    if (archetype.id === 'ARITHMETIC_NUMBER_THEORY' || ['fprime', 'pgcd', 'lcm', 'add_prime_sum', 'print_hex', 'tab_mult', 'fizzbuzz'].includes(id)) {
+      return {
+        modelType: 'math_reactor',
+        structureType: 'int / unsigned int (Aritmética en registros ALU)',
+        conceptTitle: 'Reactor Numérico y Criba Aritmética 3D',
+        conceptDesc: 'Descomposición en factores primos o cálculo de divisores en tiempo real sobre la Unidad Aritmético Lógica.',
+        visualEntities: [
+          { label: 'Valor Dividendo', color: 'bg-indigo-500', desc: 'Número en proceso de reducción' },
+          { label: 'Divisor Candidato', color: 'bg-amber-500', desc: 'Factor probado con operador módulo (%)' },
+          { label: 'Factor Emitido', color: 'bg-emerald-500', desc: 'Primo confirmado enviado a la salida' },
+        ],
+        keyObservation: 'Cuando un número no es divisible por 2, nunca lo será por ningún par, optimizando la reducción.',
+      }
+    }
+    if (archetype.id === 'DYNAMIC_HEAP_ALLOCATION' || ['sort_int_tab', 'max', 'ft_range', 'ft_rrange', 'ft_atoi', 'ft_atoi_base', 'ft_itoa'].includes(id)) {
+      return {
+        modelType: 'array_bars',
+        structureType: 'int *tab (Buffer contiguo en Heap / Stack)',
+        conceptTitle: 'Barras de Memoria Lineal en 3D',
+        conceptDesc: 'Visualización tridimensional de un array de enteros en memoria continua. Cada barra representa tab[i] y su altura el valor numérico.',
+        visualEntities: [
+          { label: 'Barra tab[i]', color: 'bg-sky-500', desc: 'Elemento en la posición de memoria' },
+          { label: 'Pivote de Comparación', color: 'bg-amber-500', desc: 'Posición analizada en el algoritmo' },
+          { label: 'Intercambio Swap', color: 'bg-emerald-500', desc: 'Reubicación in-place de valores' },
+        ],
+        keyObservation: 'Comprueba el principio de contigüidad: *(tab + i) equivale a tab[i].',
+      }
+    }
+    if (archetype.id === 'TWO_POINTER_TOKENIZER' || [
+      'first_word', 'last_word', 'epur_str', 'expand_str',
+      'rostring', 'rev_wstr', 'ft_split', 'str_capitalizer',
+      'rstr_capitalizer', 'camel_to_snake', 'snake_to_camel',
+    ].includes(id)) {
+      return {
+        modelType: 'word_scanner',
+        structureType: 'char * (C-String y punteros a tokens)',
+        conceptTitle: 'Escáner 3D de Palabras y Delimitadores',
+        conceptDesc: 'Celdas contiguas de memoria con cada carácter del string. Los punteros se desplazan identificando espacios, inicio y fin de token.',
+        visualEntities: [
+          { label: 'Puntero Start', color: 'bg-emerald-500', desc: 'Inicio de la palabra (primer no-espacio)' },
+          { label: 'Puntero End', color: 'bg-sky-500', desc: 'Fin de la palabra (siguiente delimitador)' },
+          { label: 'Byte Nulo (\\0)', color: 'bg-rose-500', desc: '0x00 centinela que finaliza la lectura' },
+        ],
+        keyObservation: 'Saltar espacios iniciales antes de empezar a escribir evita caracteres basura al inicio de la salida.',
+      }
+    }
+    return {
+      modelType: 'memory_cells',
+      structureType: 'char * / void * (Bytes contiguos en memoria)',
+      conceptTitle: 'Celdas de Memoria Física en 3D',
+      conceptDesc: 'Inspección tridimensional del buffer de bytes y direcciones de memoria (0x7ffd...) asignadas por el sistema operativo.',
+      visualEntities: [
+        { label: 'Dirección Base', color: 'bg-indigo-500', desc: 'Puntero inicial al bloque' },
+        { label: 'Byte Leído', color: 'bg-emerald-500', desc: 'Valor desreferenciado actual' },
+        { label: 'Terminador \\0', color: 'bg-rose-500', desc: 'Fin de bloque de datos' },
+      ],
+      keyObservation: 'Cada carácter en C es un entero de 1 byte sin signo almacenado en memoria física.',
+    }
+  })()
+
+  // Tips específicos de debugging manual con Printf y GDB
+  const gdbManualTips = SPECIFIC_BLUEPRINTS[id]?.gdbManualTips || {
+    breakpoint: isProgram ? 'break main' : `break ${exercise.nombre || 'mi_funcion'}`,
+    watchExpr: isProgram ? 'print argv[1]' : 'print *ptr',
+    printfSnippet: isProgram
+      ? `printf("[DEBUG] i=%d, char='%c' (0x%x)\\n", i, argv[1][i], (unsigned char)argv[1][i]); fflush(stdout);`
+      : `printf("[DEBUG] param='%s', len=%d\\n", str, i); fflush(stdout);`,
+    valgrindCommand: isProgram
+      ? `valgrind --leak-check=full ./${id} "test string"`
+      : `valgrind --leak-check=full ./test_${id}`,
+    segfaultWarning: isProgram
+      ? 'Verifica que argc sea suficiente antes de acceder a argv[1], de lo contrario argv[1] será NULL y provocará Segfault.'
+      : 'Verifica que los punteros recibidos no sean NULL antes de acceder a sus miembros o índices.',
+  }
+
+  // Cargar contrato pedagógico ultra-específico (100% no genérico)
+  const contract = EXERCISE_CONTRACTS[id] || buildDynamicExerciseContract(exercise)
+
+  // Mapear trampas específicas reales del ejercicio
+  const fatalTraps = (exercise.trampas && exercise.trampas.length > 0)
+    ? exercise.trampas.map(t => ({
+        name: t.titulo,
+        severity: t.severidad || 'mortal',
+        cause: t.descripcion,
+        cure: t.codigoBien,
+        badCode: t.codigoMal,
+        goodCode: t.codigoBien,
+      }))
+    : [
+        {
+          name: isProgram ? 'Fallo por argc insuficiente' : 'Desreferenciación de NULL',
+          severity: 'mortal',
+          cause: isProgram
+            ? 'Acceder a argv[1] cuando argc < 2 provoca Segfault inmediato.'
+            : 'Intentar leer a través de un puntero NULL sin comprobar su validez previa.',
+          cure: isProgram ? 'if (argc != 2) { write(1, "\\n", 1); return (0); }' : 'if (!ptr) return (0);',
+          badCode: isProgram ? 'char *s = argv[1]; // ❌ Si argc es 1, argv[1] es NULL' : 'int c = *ptr; // ❌ Si ptr es NULL, Segfault',
+          goodCode: isProgram ? 'if (argc < 2) return (0);' : 'if (!ptr) return (0);',
+        },
+        {
+          name: 'Off-by-one en terminador \\0',
+          severity: 'mortal',
+          cause: 'Contar o mutar el centinela nulo alterando la longitud de memoria real.',
+          cure: 'Comprobar siempre que el índice no supere el byte nulo.',
+          badCode: 'while (s[i]) { ... } s[i + 1] = 0; // ❌ Desborde',
+          goodCode: 'while (s[i]) { ... i++; } // ✅',
+        },
+      ]
+
+  const specificMentalSteps = (contract?.mentalSteps && contract.mentalSteps.length > 0)
+    ? contract.mentalSteps
+    : mentalSteps
+
+  const specificDictionary = (contract?.dictionary && contract.dictionary.length > 0)
+    ? contract.dictionary
+    : dictionary
+
+  const specificQuiz = contract?.quiz || {
+    question: `¿Cuál es el primer paso antes de ejecutar el algoritmo de ${exercise.nombre || 'este ejercicio'}?`,
+    options: [
+      'Escribir un bucle while sin comprobar nada',
+      'Validar los argumentos de entrada o punteros para evitar fallos de segmentación',
+      'Llamar a malloc sin calcular el tamaño',
+    ],
+    correctIdx: 1,
+    explanation: 'La regla de oro en C y en 42 es siempre validar la entrada antes de intentar leerla.',
+  }
+
   return {
     exerciseId: id,
     nature,
@@ -689,39 +899,26 @@ export function getExerciseThinkingBlueprint(exercise) {
     archetype,
     analogy,
     underTheHood,
+    threeConfig,
+    gdbManualTips,
+    contract,
+    prototype: contract?.prototype || (isProgram ? 'int main(int argc, char **argv);' : `${exercise.tipoEntrega || 'void'} ${exercise.nombre || id}(...);`),
+    signature: contract?.signature || (isProgram ? 'int argc, char **argv' : 'parámetros formales'),
+    inputDataTypes: contract?.inputDataTypes || [],
+    outputDataTypes: contract?.outputDataTypes || {
+      returnType: isProgram ? 'int (0)' : 'void / valor',
+      whatItTransforms: 'Salida del ejercicio',
+      whyReturn: 'Especificación de C'
+    },
+    goldenRule: contract?.goldenRule || (isProgram ? 'Si los argumentos son incorrectos, imprimir "\\n" y salir.' : 'Verificar punteros antes de desreferenciar.'),
     inputOutput: {
       input: isProgram ? 'Argumentos de terminal (argc, argv)' : 'Parámetros formales en C',
       output: isProgram ? 'write(1, ...) + "\\n"' : 'Retorno de valor o modificación en memoria',
-      goldenRule: isProgram ? 'Si los argumentos son incorrectos, imprimir "\\n" y salir.' : 'Verificar punteros antes de desreferenciar.',
+      goldenRule: contract?.goldenRule || (isProgram ? 'Si los argumentos son incorrectos, imprimir "\\n" y salir.' : 'Verificar punteros antes de desreferenciar.'),
     },
-    mentalSteps,
-    dictionary,
-    fatalTraps: [
-      {
-        name: 'Segmentation Fault',
-        cause: 'Acceso a memoria no inicializada o desreferenciación de NULL.',
-        cure: 'Validar siempre `if (!ptr) return;`.',
-      },
-      {
-        name: 'Bucle Infinito',
-        cause: 'No incrementar la variable de control o no avanzar el puntero en todas las ramas.',
-        cure: 'Asegurar `i++` o `ptr = ptr->next` en cada iteración.',
-      },
-      {
-        name: 'Formato de Salida Moulinette',
-        cause: 'Olvidar el salto de línea obligatorio en programas con main.',
-        cure: 'Escribir `write(1, "\\n", 1);` al finalizar.',
-      },
-    ],
-    quiz: {
-      question: `¿Cuál es el primer paso antes de ejecutar el algoritmo de ${exercise.nombre || 'este ejercicio'}?`,
-      options: [
-        'Escribir un bucle while sin comprobar nada',
-        'Validar los argumentos de entrada o punteros para evitar fallos de segmentación',
-        'Llamar a malloc sin calcular el tamaño',
-      ],
-      correctIdx: 1,
-      explanation: 'La regla de oro en C y en 42 es siempre validar la entrada antes de intentar leerla.',
-    },
+    mentalSteps: specificMentalSteps,
+    dictionary: specificDictionary,
+    fatalTraps,
+    quiz: specificQuiz,
   }
 }

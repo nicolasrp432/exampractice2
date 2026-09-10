@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { ChevronLeft, ChevronRight, RotateCcw, Zap } from 'lucide-react'
+import { ChevronLeft, ChevronRight, RotateCcw, Zap, Terminal, Bug, Sparkles } from 'lucide-react'
 import clsx from 'clsx'
 import { motion, AnimatePresence } from 'framer-motion'
 import { normalizeGdbTrace } from '@/utils/gdbTrace'
 import StackFrameView from '@/components/viz/StackFrameView'
 import PointerArrows from '@/components/viz/PointerArrows'
 import ConceptPanel from '@/components/viz/ConceptPanel'
+import ManualDebugGuide from '@/components/gdb/ManualDebugGuide'
 
 function CodeExcerpt({ code = '', lineNumber = null }) {
   const lines = useMemo(() => {
@@ -95,12 +96,14 @@ function Timeline({ trace, currentStepIndex, onPick }) {
 }
 
 export default function GdbStepper({
+  exercise = null,
   steps = [],
   caminos = null,
   title = 'Traza de ejecución',
   exerciseConceptos = [],
   cached = false,
 }) {
+  const [activeTab, setActiveTab] = useState('trace') // 'trace' | 'manual'
   const tieneCaminos = Array.isArray(caminos) && caminos.length > 0
   const [caminoIdx, setCaminoIdx] = useState(0)
   const activeSteps = tieneCaminos
@@ -160,34 +163,77 @@ export default function GdbStepper({
 
   if (!trace.length) {
     return (
-      <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-8 text-center text-zinc-500">
-        No hay pasos de GDB definidos para este ejercicio.
+      <div className="space-y-4">
+        <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4 text-center text-xs text-zinc-500">
+          No hay traza precalculada de pasos para este ejercicio, pero puedes aprender las técnicas manuales aquí:
+        </div>
+        <ManualDebugGuide exercise={exercise} />
       </div>
     )
   }
 
   return (
     <div className="flex flex-col gap-4 rounded-xl border border-zinc-200 bg-white min-h-[420px] overflow-hidden">
-      {tieneCaminos && caminos.length > 1 && (
-        <div className="border-b border-zinc-100 bg-white px-4 py-2 flex flex-wrap items-center gap-2 text-xs">
-          <span className="text-zinc-500 font-semibold uppercase tracking-wide mr-1">Camino GDB</span>
-          {caminos.map((c, i) => (
-            <button
-              key={c.id ?? i}
-              onClick={() => setCaminoIdx(i)}
-              className={
-                'px-2.5 py-1 rounded-md border ' +
-                (i === caminoIdx
-                  ? 'bg-purple-600 text-white border-purple-600'
-                  : 'bg-white text-zinc-600 border-zinc-200 hover:bg-zinc-50')
-              }
-              title={c.descripcion}
-            >
-              {c.nombre || c.id || `Camino ${i + 1}`}
-            </button>
-          ))}
+      {/* ── Selector Principal: Traza Visual vs Debugging Manual ── */}
+      <div className="border-b border-zinc-200 bg-zinc-100/70 p-1.5 flex items-center justify-between flex-wrap gap-2 text-xs">
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => setActiveTab('trace')}
+            className={clsx(
+              'flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold transition-all',
+              activeTab === 'trace'
+                ? 'bg-white text-purple-900 shadow-xs font-bold'
+                : 'text-zinc-600 hover:text-zinc-900'
+            )}
+          >
+            <Zap size={14} className="text-purple-600" />
+            <span>Traza Visual Paso a Paso</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('manual')}
+            className={clsx(
+              'flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold transition-all',
+              activeTab === 'manual'
+                ? 'bg-white text-zinc-900 shadow-xs font-bold'
+                : 'text-zinc-600 hover:text-zinc-900'
+            )}
+          >
+            <Bug size={14} className="text-amber-600" />
+            <span>Aprende a Debugear: Printf & GDB</span>
+          </button>
         </div>
-      )}
+
+        <span className="text-[11px] font-mono text-zinc-500 px-2">
+          {activeTab === 'trace' ? `${trace.length} pasos simulados` : 'Guía de laboratorio en C'}
+        </span>
+      </div>
+
+      {activeTab === 'manual' ? (
+        <div className="p-4">
+          <ManualDebugGuide exercise={exercise} />
+        </div>
+      ) : (
+        <>
+          {tieneCaminos && caminos.length > 1 && (
+            <div className="border-b border-zinc-100 bg-white px-4 py-2 flex flex-wrap items-center gap-2 text-xs">
+              <span className="text-zinc-500 font-semibold uppercase tracking-wide mr-1">Camino GDB</span>
+              {caminos.map((c, i) => (
+                <button
+                  key={c.id ?? i}
+                  onClick={() => setCaminoIdx(i)}
+                  className={
+                    'px-2.5 py-1 rounded-md border ' +
+                    (i === caminoIdx
+                      ? 'bg-purple-600 text-white border-purple-600'
+                      : 'bg-white text-zinc-600 border-zinc-200 hover:bg-zinc-50')
+                  }
+                  title={c.descripcion}
+                >
+                  {c.nombre || c.id || `Camino ${i + 1}`}
+                </button>
+              ))}
+            </div>
+          )}
       <div className="border-b border-zinc-200 bg-zinc-50 px-4 py-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
@@ -323,6 +369,8 @@ export default function GdbStepper({
           </span>
         </motion.div>
       </AnimatePresence>
+        </>
+      )}
     </div>
   )
 }

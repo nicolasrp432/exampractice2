@@ -30,7 +30,7 @@ export function useUserVariants(exerciseId) {
 
     // Escuchar el estado de autenticación para descargar variantes de la nube
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (user) {
+      if (user && user.uid) {
         try {
           const q = query(
             collection(db, `users/${user.uid}/variants`),
@@ -49,7 +49,7 @@ export function useUserVariants(exerciseId) {
             persist(exerciseId, cloudVariants)
           }
         } catch (error) {
-          console.error('Error al cargar variantes de Firestore:', error)
+          console.warn('Notice al sincronizar variantes con Firestore:', error?.message)
         }
       }
     })
@@ -71,11 +71,11 @@ export function useUserVariants(exerciseId) {
     persist(exerciseId, updated)
 
     const user = auth?.currentUser
-    if (isConfigured && db && user) {
+    if (isConfigured && db && user && user.uid) {
       try {
         await setDoc(doc(db, `users/${user.uid}/variants`, newVariant.id), newVariant)
       } catch (error) {
-        console.error('Error al subir variante a Firestore:', error)
+        console.warn('Notice al subir variante a Firestore:', error?.message)
       }
     }
   }
@@ -86,11 +86,11 @@ export function useUserVariants(exerciseId) {
     persist(exerciseId, updated)
 
     const user = auth?.currentUser
-    if (isConfigured && db && user) {
+    if (isConfigured && db && user && user.uid) {
       try {
         await deleteDoc(doc(db, `users/${user.uid}/variants`, id))
       } catch (error) {
-        console.error('Error al borrar variante en Firestore:', error)
+        console.warn('Notice al borrar variante en Firestore:', error?.message)
       }
     }
   }
