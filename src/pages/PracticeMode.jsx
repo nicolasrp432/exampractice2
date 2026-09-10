@@ -1007,7 +1007,7 @@ export default function PracticeMode() {
     }
     setShowGdbTrace(true)
     const fullCode = buildFullCode(exercise.id, exercise.tipoEntrega, code)
-    await liveTrace.run(fullCode, args, stdin)
+    await liveTrace.run(fullCode, args, stdin, exercise.id)
   }
 
   const handleUseSolution = (solutionCode) => {

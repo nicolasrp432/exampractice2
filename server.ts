@@ -294,11 +294,42 @@ async function startServer() {
     }
   });
 
-  // ─── API: Compilador Local C ───
+  // ─── API: Estado del Compilador ───
+  app.get('/api/compile/status', (_req, res) => {
+    exec('gcc --version', (err, stdout) => {
+      if (err) {
+        return res.json({ ready: false, compiler: null, error: err.message });
+      }
+      const firstLine = stdout.split('\n')[0];
+      res.json({
+        ready: true,
+        compiler: firstLine,
+        flags: '-Wall -Wextra -Werror (Normas 42)',
+        mode: 'local-native-gcc',
+      });
+    });
+  });
+
+  // ─── API: Compilador Local C (Reglas Oficiales Escuela 42) ───
   app.post('/api/compile-local', async (req, res) => {
     try {
-      const { code, args = [] } = req.body;
-      const result = await compileAndRunLocal(code, args);
+      const {
+        code,
+        args = [],
+        stdin = '',
+        compilerOptionRaw = '',
+        strictMoulinette = true,
+        timeoutMs = 3000,
+      } = req.body;
+
+      const result = await compileAndRunLocal({
+        code,
+        args,
+        stdin,
+        compilerOptionRaw,
+        strictMoulinette,
+        timeoutMs,
+      });
       res.json(result);
     } catch (err: any) {
       res.json({
@@ -306,6 +337,7 @@ async function startServer() {
         stdout: '',
         stderr: '',
         exitCode: -1,
+        signal: null,
       });
     }
   });
@@ -331,79 +363,209 @@ async function startServer() {
   });
 }
 
-function compileAndRunLocal(code: string, args: string[]): Promise<any> {
+interface CompileRequest {
+  code: string;
+  args?: string[];
+  stdin?: string;
+  compilerOptionRaw?: string;
+  strictMoulinette?: boolean;
+  timeoutMs?: number;
+}
+
+function compileAndRunLocal(params: CompileRequest): Promise<any> {
+  const {
+    code,
+    args = [],
+    stdin = '',
+    compilerOptionRaw = '',
+    strictMoulinette = true,
+    timeoutMs = 3000,
+  } = params;
+
   return new Promise((resolve) => {
-    const fileId = `${Date.now()}_${Math.floor(Math.random() * 10000)}`;
+    if (!code || typeof code !== 'string') {
+      return resolve({
+        compileError: 'No se proporcionó código C para compilar.',
+        stdout: '',
+        stderr: '',
+        exitCode: -1,
+        signal: null,
+      });
+    }
+
+    const fileId = `${Date.now()}_${Math.floor(Math.random() * 100000)}`;
     const sourcePath = path.join(BUILDS_DIR, `temp_${fileId}.c`);
-    const binaryPath = path.join(BUILDS_DIR, `temp_${fileId}.exe`);
+    const binaryPath = path.join(BUILDS_DIR, `bin_${fileId}`);
 
-    fs.writeFileSync(sourcePath, code, 'utf8');
-    const compileCmd = `gcc -Wall -Wextra -Werror "${sourcePath}" -o "${binaryPath}"`;
+    try {
+      fs.writeFileSync(sourcePath, code, 'utf8');
+    } catch (e: any) {
+      return resolve({
+        compileError: `Error al crear archivo temporal: ${e.message}`,
+        stdout: '',
+        stderr: '',
+        exitCode: -1,
+        signal: null,
+      });
+    }
 
-    exec(compileCmd, { timeout: 10000 }, (error, stdout, stderr) => {
+    // Construcción de flags según las normas de la Escuela 42 (-Wall -Wextra -Werror)
+    const flags: string[] = [];
+    if (strictMoulinette) {
+      flags.push('-Wall', '-Wextra', '-Werror');
+    }
+
+    // Si el código incluye el tracer de pasos, permitimos no usar todas las funciones o parámetros de traza
+    if (code.includes('__tracer') || code.includes('__TR_PREFIX')) {
+      flags.push('-Wno-unused-function', '-Wno-unused-variable', '-Wno-unused-parameter');
+    }
+
+    // Flags adicionales personalizados
+    if (compilerOptionRaw && typeof compilerOptionRaw === 'string') {
+      const extraFlags = compilerOptionRaw
+        .split(/[\n\s]+/)
+        .map((f) => f.trim())
+        .filter(Boolean);
+      for (const ef of extraFlags) {
+        if (!flags.includes(ef)) {
+          flags.push(ef);
+        }
+      }
+    }
+
+    const compileCmd = `gcc ${flags.join(' ')} "${sourcePath}" -o "${binaryPath}"`;
+
+    exec(compileCmd, { timeout: 8000 }, (error, stdout, stderr) => {
       try { fs.unlinkSync(sourcePath); } catch (e) {}
 
       if (error) {
-        if (error.message.includes('not recognized') || error.message.includes('CommandNotFoundException') || error.message.includes('ENOENT')) {
+        if (
+          error.message.includes('not recognized') ||
+          error.message.includes('CommandNotFoundException') ||
+          error.message.includes('ENOENT')
+        ) {
           resolve({
             compilerUnavailable: true,
             compileError: `El compilador 'gcc' no está disponible en este entorno.\nUsa el simulador en memoria o instala MinGW/WSL para compilación nativa.`,
             stdout: '',
             stderr: '',
             exitCode: -1,
+            signal: null,
           });
           return;
         }
 
+        const rawErr = stderr || stdout || error.message;
         resolve({
-          compileError: stderr || stdout || error.message,
+          compileError: rawErr,
           stdout: '',
-          stderr: '',
+          stderr: rawErr,
           exitCode: -1,
+          signal: null,
+          isCompilationError: true,
         });
         return;
       }
 
+      // Asegurar permisos de ejecución en Linux
+      try {
+        fs.chmodSync(binaryPath, 0o755);
+      } catch (e) {}
+
       let programStdout = '';
       let programStderr = '';
-      const child = spawn(binaryPath, args, { timeout: 3000 });
+      let isKilled = false;
+      const MAX_OUTPUT = 256 * 1024; // 256 KB límite
+
+      const safeArgs = args.map((a) => String(a ?? ''));
+      const child = spawn(binaryPath, safeArgs);
+
+      const timer = setTimeout(() => {
+        isKilled = true;
+        try { child.kill('SIGKILL'); } catch (e) {}
+      }, Math.max(1000, Math.min(timeoutMs, 6000)));
+
+      // Enviar stdin si existe
+      if (child.stdin) {
+        if (stdin) {
+          try {
+            child.stdin.write(stdin);
+          } catch (e) {}
+        }
+        try {
+          child.stdin.end();
+        } catch (e) {}
+      }
 
       child.stdout.on('data', (data) => {
-        programStdout += data.toString();
+        if (programStdout.length < MAX_OUTPUT) {
+          programStdout += data.toString();
+        }
       });
 
       child.stderr.on('data', (data) => {
-        programStderr += data.toString();
+        if (programStderr.length < MAX_OUTPUT) {
+          programStderr += data.toString();
+        }
       });
 
       child.on('error', (spawnErr) => {
+        clearTimeout(timer);
         try { fs.unlinkSync(binaryPath); } catch (e) {}
         resolve({
           compileError: `Error al ejecutar el binario: ${spawnErr.message}`,
           stdout: programStdout,
           stderr: programStderr,
           exitCode: -1,
+          signal: null,
         });
       });
 
       child.on('close', (code, signal) => {
+        clearTimeout(timer);
         try { fs.unlinkSync(binaryPath); } catch (e) {}
 
-        if (signal === 'SIGTERM' || signal === 'SIGKILL' || child.killed) {
-          resolve({
-            compileError: 'Ejecución cancelada: Tiempo de ejecución excedido (posible bucle infinito o espera de input)',
-            stdout: programStdout,
-            stderr: programStderr,
-            exitCode: -1,
-          });
-        } else {
+        if (isKilled || signal === 'SIGTERM' || signal === 'SIGKILL') {
           resolve({
             compileError: null,
             stdout: programStdout,
-            stderr: programStderr,
-            exitCode: code ?? 0,
+            stderr: (programStderr ? programStderr + '\n' : '') + 'Tiempo límite excedido (Timeout / TLE) — Posible bucle infinito o espera de input.',
+            exitCode: -1,
+            signal: 'SIGKILL',
+            isTimeout: true,
           });
+          return;
         }
+
+        // Detección de señales críticas de 42 (Segmentation fault, Bus error, etc.)
+        let fatalSignalDesc = null;
+        let signalNum: number | null = null;
+
+        if (signal === 'SIGSEGV' || code === 139) {
+          signalNum = 11;
+          fatalSignalDesc = 'Segmentation fault (core dumped) [KO en Moulinette: Acceso a memoria inválido o desreferenciación de NULL]';
+        } else if (signal === 'SIGBUS' || code === 135) {
+          signalNum = 7;
+          fatalSignalDesc = 'Bus error [KO en Moulinette: Violación de memoria o alineamiento]';
+        } else if (signal === 'SIGABRT' || code === 134) {
+          signalNum = 6;
+          fatalSignalDesc = 'Aborted (core dumped) [KO en Moulinette: Doble free o corrupción de heap/stack]';
+        } else if (signal === 'SIGFPE' || code === 136) {
+          signalNum = 8;
+          fatalSignalDesc = 'Floating point exception [KO en Moulinette: División por cero]';
+        }
+
+        if (fatalSignalDesc && !programStderr.includes('Segmentation fault') && !programStderr.includes('Bus error')) {
+          programStderr = programStderr ? `${programStderr}\n${fatalSignalDesc}` : fatalSignalDesc;
+        }
+
+        resolve({
+          compileError: null,
+          stdout: programStdout,
+          stderr: programStderr,
+          exitCode: code ?? 0,
+          signal: signalNum,
+        });
       });
     });
   });

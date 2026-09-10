@@ -22,31 +22,31 @@ const RUNTIME_HEADER = `
 #include <stddef.h>
 #define __TR_PREFIX "__TR__"
 #define __TR_SUFFIX "__/TR__"
-static int __tr_first_field = 0;
-static unsigned long __tr_steps_emitted = 0;
-static const unsigned long __TR_MAX_STEPS = 8000;
-static void __tr_begin(int line, const char *fn) {
+static int __attribute__((unused)) __tr_first_field = 0;
+static unsigned long __attribute__((unused)) __tr_steps_emitted = 0;
+static const unsigned long __attribute__((unused)) __TR_MAX_STEPS = 8000;
+static void __attribute__((unused)) __tr_begin(int line, const char *fn) {
     if (__tr_steps_emitted >= __TR_MAX_STEPS) return;
     fprintf(stderr, __TR_PREFIX "{\\"line\\":%d,\\"fn\\":\\"%s\\",\\"vars\\":{", line, fn);
     __tr_first_field = 1;
 }
-static void __tr_sep(const char *name) {
+static void __attribute__((unused)) __tr_sep(const char *name) {
     if (__tr_steps_emitted >= __TR_MAX_STEPS) return;
     if (!__tr_first_field) fputc(',', stderr);
     __tr_first_field = 0;
     fprintf(stderr, "\\"%s\\":", name);
 }
-static void __tr_int(const char *name, long long v) {
+static void __attribute__((unused)) __tr_int(const char *name, long long v) {
     if (__tr_steps_emitted >= __TR_MAX_STEPS) return;
     __tr_sep(name);
     fprintf(stderr, "%lld", v);
 }
-static void __tr_uint(const char *name, unsigned long long v) {
+static void __attribute__((unused)) __tr_uint(const char *name, unsigned long long v) {
     if (__tr_steps_emitted >= __TR_MAX_STEPS) return;
     __tr_sep(name);
     fprintf(stderr, "%llu", v);
 }
-static void __tr_char(const char *name, int v) {
+static void __attribute__((unused)) __tr_char(const char *name, int v) {
     if (__tr_steps_emitted >= __TR_MAX_STEPS) return;
     __tr_sep(name);
     unsigned char c = (unsigned char)v;
@@ -56,13 +56,13 @@ static void __tr_char(const char *name, int v) {
         fprintf(stderr, "\\"\\\\x%02x (%d)\\"", c, (int)c);
     }
 }
-static void __tr_ptr(const char *name, const void *v) {
+static void __attribute__((unused)) __tr_ptr(const char *name, const void *v) {
     if (__tr_steps_emitted >= __TR_MAX_STEPS) return;
     __tr_sep(name);
     if (!v) fputs("\\"NULL\\"", stderr);
     else fprintf(stderr, "\\"%p\\"", v);
 }
-static void __tr_str(const char *name, const char *v) {
+static void __attribute__((unused)) __tr_str(const char *name, const char *v) {
     if (__tr_steps_emitted >= __TR_MAX_STEPS) return;
     __tr_sep(name);
     if (!v) { fputs("null", stderr); return; }
@@ -81,7 +81,7 @@ static void __tr_str(const char *name, const char *v) {
     if (v[n]) fputs("\\\\u2026", stderr);
     fputc('"', stderr);
 }
-static void __tr_end(void) {
+static void __attribute__((unused)) __tr_end(void) {
     if (__tr_steps_emitted >= __TR_MAX_STEPS) {
         if (__tr_steps_emitted == __TR_MAX_STEPS) {
             fprintf(stderr, __TR_PREFIX "{\\"truncated\\":true}" __TR_SUFFIX "\\n");

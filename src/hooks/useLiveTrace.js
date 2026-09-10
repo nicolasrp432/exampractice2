@@ -22,7 +22,7 @@ export function useLiveTrace() {
     setResult(null)
   }, [])
 
-  const run = useCallback(async (fullSource, args = [], stdin = '') => {
+  const run = useCallback(async (fullSource, args = [], stdin = '', exerciseId = null) => {
     const runId = ++inflight.current
     setError(null)
 
@@ -51,11 +51,14 @@ export function useLiveTrace() {
 
     let runResult
     try {
-      runResult = await compileAndRun(instrumentedCode, args, { stdin })
+      runResult = await compileAndRun(instrumentedCode, args, exerciseId, {
+        stdin,
+        compilerOptionRaw: '-Wno-unused-function -Wno-unused-variable',
+      })
     } catch (err) {
       if (runId !== inflight.current) return null
       setStatus('error')
-      setError('Error de red con el compilador: ' + err.message)
+      setError('Error al compilar para traza: ' + err.message)
       return null
     }
 
@@ -64,9 +67,8 @@ export function useLiveTrace() {
     if (runResult.compileError) {
       setStatus('error')
       setError(
-        'El código instrumentado no compila. Suele significar que el parser no ' +
-        'entendió alguna construcción (macro, sintaxis poco común). Revisa el ' +
-        'panel "Ejecutar" para ver el error exacto.'
+        runResult.compileError ||
+        'El código no compila con las normas 42. Revisa la pestaña "Ejecutar" o "Moulinette" para ver los errores de GCC.'
       )
       const payload = {
         steps: [],
@@ -95,15 +97,23 @@ export function useLiveTrace() {
       instrumentedSource: instrumentedCode,
     }
     setResult(payload)
-    setStatus(finalSteps.length ? 'done' : 'error')
-    if (!finalSteps.length) {
-      setError(
-        'El programa se ejecutó pero no emitió pasos de traza. ' +
-        'Puede que tu código no use ninguna función instrumentable, o que el ' +
-        'parser haya saltado tu función por una construcción que no reconoce.'
-      )
+
+    if (runResult.signal === 11 || (cleanStderr && cleanStderr.includes('Segmentation fault'))) {
+      setStatus('done') // allow viewing trace steps up to the crash point!
+      setError('⚠️ Segmentation fault (Fallo de segmentación) detectado en la ejecución. Revisa el último paso donde ocurrió el acceso a memoria inválido.')
+    } else if (runResult.isTimeout || (cleanStderr && cleanStderr.includes('Timeout'))) {
+      setStatus('done')
+      setError('⏳ Tiempo límite excedido (Timeout): Posible bucle infinito detectado.')
     } else {
-      cache.set(cacheKey, payload)
+      setStatus(finalSteps.length ? 'done' : 'error')
+      if (!finalSteps.length) {
+        setError(
+          'El programa se ejecutó pero no emitió pasos de traza. ' +
+          'Puede que tu función no se haya llamado o haya terminado inmediatamente.'
+        )
+      } else {
+        cache.set(cacheKey, payload)
+      }
     }
     return payload
   }, [cache])

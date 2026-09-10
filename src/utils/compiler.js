@@ -1,6 +1,7 @@
 import { simulators } from './simulators/index.js'
 
 const WANDBOX_URL = 'https://wandbox.org/api/compile.json'
+const LOCAL_API_URL = typeof window !== 'undefined' ? '/api/compile-local' : 'http://localhost:3000/api/compile-local'
 
 function parseDiagnosticLine(line, sourceLines) {
   const detailed = line.match(/^(.*?):(\d+):(\d+):\s*(fatal error|error|warning|note):\s*(.*)$/i)
@@ -51,20 +52,40 @@ function parseStatus(rawStatus) {
   return { exitCode: Number.isNaN(n) ? -1 : n, signal: null }
 }
 
-export async function compileAndRun(code, args = [], exerciseId = null, options = {}) {
+export async function compileAndRun(code, args = [], exerciseIdOrOptions = null, maybeOptions = {}) {
+  let exerciseId = null
+  let options = {}
+
+  if (exerciseIdOrOptions && typeof exerciseIdOrOptions === 'object') {
+    options = exerciseIdOrOptions
+    exerciseId = options.exerciseId || null
+  } else {
+    exerciseId = exerciseIdOrOptions
+    options = maybeOptions || {}
+  }
+
   const {
     stdin = '',
     compilerOptions = '',
     compilerOptionRaw = '',
     compiler = 'gcc-head-c',
+    strictMoulinette = true,
+    timeoutMs = 3000,
   } = options
 
-  // --- CAPA 1: Compilador Local ---
+  // --- CAPA 1: Compilador Local Nativo (GCC con normas 42) ---
   try {
-    const localRes = await fetch('/api/compile-local', {
+    const localRes = await fetch(LOCAL_API_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code, args }),
+      body: JSON.stringify({
+        code,
+        args,
+        stdin,
+        compilerOptionRaw,
+        strictMoulinette,
+        timeoutMs,
+      }),
     })
 
     if (localRes.ok) {
@@ -76,7 +97,8 @@ export async function compileAndRun(code, args = [], exerciseId = null, options 
           stdout: data.stdout ?? '',
           stderr: data.stderr ?? '',
           exitCode: data.exitCode ?? 0,
-          signal: null,
+          signal: data.signal ?? null,
+          isTimeout: Boolean(data.isTimeout),
           mode: 'local',
         }
       }
@@ -154,5 +176,15 @@ export async function compileAndRun(code, args = [], exerciseId = null, options 
     }
   }
 
-  throw new Error('No se pudo compilar el código. Compilador local no disponible, Wandbox fuera de línea y sin simulador JS para este ejercicio.')
+  // Fallback seguro sin lanzar excepción destructiva
+  return {
+    compileError: 'Servicio de compilación temporalmente no disponible (Compilador local desconectado y Wandbox fuera de línea).',
+    compileDiagnostics: [],
+    stdout: '',
+    stderr: 'No se pudo contactar ni con el compilador nativo local ni con el servidor remoto.',
+    exitCode: -1,
+    signal: null,
+    mode: 'offline',
+    networkError: 'Compilador fuera de línea',
+  }
 }
