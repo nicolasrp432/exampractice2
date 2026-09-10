@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { NavLink } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  Home, Map, Wrench, Clock, BarChart2, GraduationCap,
+  Home, Map, Wrench, Clock, BarChart2, GraduationCap, Brain,
   ChevronLeft, ChevronRight, X,
 } from 'lucide-react'
 import clsx from 'clsx'
@@ -12,6 +12,7 @@ import { exercisesByLevel } from '@/data/index'
 const NAV_ITEMS = [
   { to: '/',            icon: Home,     label: 'Inicio'    },
   { to: '/fundamentos', icon: GraduationCap, label: 'Fundamentos' },
+  { to: '/flashcards',  icon: Brain,    label: 'Flashcards' },
   { to: '/palacio',     icon: Map,      label: 'Palacio'   },
   { to: '/herramientas',icon: Wrench,   label: 'Herramientas' },
   { to: '/examen',      icon: Clock,    label: 'Examen'    },

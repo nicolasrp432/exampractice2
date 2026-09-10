@@ -8,7 +8,7 @@ import {
   Microscope, Terminal, Plus, AlertTriangle, Loader2, Box, Zap, Code2, Brain
 } from 'lucide-react'
 import clsx from 'clsx'
-import { getExercise } from '@/data/index'
+import { getExercise, getNextExercise } from '@/data/index'
 import { compileAndRun } from '@/utils/compiler'
 import { buildFullCode, testHarnesses } from '@/utils/testHarnesses'
 import { getDiff, simulators } from '@/utils/simulators/index'
@@ -472,51 +472,106 @@ function SolutionReveal({ exercise, onUse }) {
 }
 
 // ─── Celebration overlay ──────────────────────────────────────────────────────
-function CelebrationOverlay({ show, onClose }) {
+function CelebrationOverlay({ show, onClose, nextExercise, onNextExercise }) {
   useEffect(() => {
-    if (show) {
-      const t = setTimeout(onClose, 3500)
-      return () => clearTimeout(t)
+    if (!show) return
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        onClose()
+      }
     }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
   }, [show, onClose])
 
   return (
     <AnimatePresence>
       {show && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none"
-        >
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          {/* Backdrop que cierra al hacer clic */}
           <motion.div
-            initial={{ scale: 0.5, y: 40 }}
-            animate={{ scale: 1, y: 0 }}
-            exit={{ scale: 0.8, opacity: 0 }}
-            transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-            className="bg-white rounded-3xl shadow-2xl border border-green-200 px-12 py-10 text-center"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={onClose}
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm cursor-pointer"
+          />
+
+          {/* Modal flotante */}
+          <motion.div
+            initial={{ scale: 0.8, y: 30, opacity: 0 }}
+            animate={{ scale: 1, y: 0, opacity: 1 }}
+            exit={{ scale: 0.8, y: 20, opacity: 0 }}
+            transition={{ type: 'spring', stiffness: 350, damping: 25 }}
+            className="relative z-10 w-full max-w-md bg-white rounded-3xl shadow-2xl border border-green-200 p-6 sm:p-8 text-center"
+            onClick={(e) => e.stopPropagation()}
           >
+            {/* Botón de cierre X en la esquina superior derecha */}
+            <button
+              onClick={onClose}
+              className="absolute top-4 right-4 p-2 rounded-full text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 transition-colors"
+              title="Cerrar ventana (Esc)"
+              aria-label="Cerrar modal"
+            >
+              <X size={20} />
+            </button>
+
+            {/* Icono animado */}
             <motion.div
-              animate={{ rotate: [0, -10, 10, -10, 10, 0] }}
-              transition={{ duration: 0.6, delay: 0.2 }}
-              className="text-6xl mb-4"
+              animate={{ rotate: [0, -10, 10, -10, 10, 0], scale: [1, 1.1, 1] }}
+              transition={{ duration: 0.8, delay: 0.1 }}
+              className="text-6xl mb-3 select-none"
             >
               🏆
             </motion.div>
-            <h2 className="text-2xl font-bold text-green-700 mb-2">¡Ejercicio dominado!</h2>
-            <p className="text-zinc-500 text-sm">Todos los tests pasaron. ¡Buen trabajo!</p>
-            <div className="mt-4 flex justify-center gap-2 text-2xl">
+
+            <h2 className="text-2xl font-black text-green-700 mb-2">¡Ejercicio dominado!</h2>
+            <p className="text-zinc-600 text-sm leading-relaxed mb-4">
+              Todos los tests pasaron con éxito. Tu solución cumple con los requisitos y la norma 42.
+            </p>
+
+            {/* Emojis festivos */}
+            <div className="flex justify-center gap-2 text-2xl mb-6 select-none">
               {['🎉','✨','🎊','⭐','🌟'].map((e, i) => (
                 <motion.span
                   key={i}
                   initial={{ y: 20, opacity: 0 }}
                   animate={{ y: 0, opacity: 1 }}
-                  transition={{ delay: 0.1 * i + 0.3 }}
+                  transition={{ delay: 0.08 * i + 0.2 }}
                 >{e}</motion.span>
               ))}
             </div>
+
+            {/* Botones de acción */}
+            <div className="flex flex-col sm:flex-row gap-3">
+              {nextExercise && onNextExercise ? (
+                <button
+                  onClick={() => {
+                    onClose()
+                    onNextExercise()
+                  }}
+                  className="flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-green-600 hover:bg-green-700 text-white font-bold text-sm shadow-md shadow-green-200 transition-all hover:scale-[1.02] active:scale-[0.98]"
+                >
+                  <span>Siguiente ejercicio</span>
+                  <span className="text-xs opacity-90 font-mono">({nextExercise.nombre})</span>
+                  <span>→</span>
+                </button>
+              ) : null}
+
+              <button
+                onClick={onClose}
+                className={clsx(
+                  "py-3 px-5 rounded-xl font-semibold text-sm transition-all border",
+                  nextExercise
+                    ? "border-zinc-200 bg-zinc-50 hover:bg-zinc-100 text-zinc-700"
+                    : "w-full bg-green-600 hover:bg-green-700 text-white shadow-md shadow-green-200"
+                )}
+              >
+                Seguir practicando
+              </button>
+            </div>
           </motion.div>
-        </motion.div>
+        </div>
       )}
     </AnimatePresence>
   )
@@ -670,6 +725,7 @@ export default function PracticeMode() {
   const { id } = useParams()
   const navigate = useNavigate()
   const exercise = getExercise(id)
+  const nextExercise = getNextExercise(id)
   const { marcarEstado, registrarIntento, ejercicios } = useProgressStore()
   const progreso = ejercicios[id]
   const strictMoulinette = useSettingsStore(s => s.strictMoulinette)
@@ -1166,12 +1222,14 @@ export default function PracticeMode() {
               <span className={clsx(
                 'w-2 h-2 rounded-full inline-block shrink-0',
                 compileMode === 'local' ? 'bg-green-500 animate-pulse' :
+                compileMode === 'judge0' ? 'bg-indigo-500 animate-pulse' :
                 compileMode === 'wandbox' ? 'bg-blue-500' :
                 compileMode === 'mock' ? 'bg-orange-500 animate-pulse' :
                 'bg-zinc-300'
               )}></span>
               <span>
                 {compileMode === 'local' ? 'Verificación local en tu entorno con gcc' :
+                 compileMode === 'judge0' ? 'Verificación remota en la nube (Judge0 GCC 42)' :
                  compileMode === 'wandbox' ? 'Verificación remota (Wandbox API)' :
                  compileMode === 'mock' ? 'Modo de simulación offline (Fallbacks activos)' :
                  'Listo para compilar tu solución'}
@@ -1327,7 +1385,16 @@ export default function PracticeMode() {
 
   return (
     <div className="flex flex-col h-screen bg-zinc-50 overflow-hidden">
-      <CelebrationOverlay show={celebrate} onClose={() => setCelebrate(false)} />
+      <CelebrationOverlay
+        show={celebrate}
+        onClose={() => setCelebrate(false)}
+        nextExercise={nextExercise}
+        onNextExercise={() => {
+          if (nextExercise) {
+            navigate(`/practicar/${nextExercise.id}`)
+          }
+        }}
+      />
       <GdbTraceModal
         open={showGdbTrace}
         onClose={() => setShowGdbTrace(false)}
@@ -1782,10 +1849,10 @@ export default function PracticeMode() {
                   ? 'bg-purple-50 text-purple-700 border-purple-200'
                   : 'bg-zinc-50 text-zinc-600 border-zinc-200'
               )}
-              title="Alternar entre compilador Wandbox y simulador offline instantáneo"
+              title="Alternar entre compilador y simulador offline instantáneo"
             >
               <Zap size={13} className={preferredCompileMode === 'mock' ? 'text-purple-600 fill-purple-600' : 'text-zinc-400'} />
-              <span>{preferredCompileMode === 'mock' ? 'Offline' : 'Wandbox'}</span>
+              <span>{preferredCompileMode === 'mock' ? 'Offline' : 'Compilador'}</span>
             </button>
 
             {/* Step Trace Button */}

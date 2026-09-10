@@ -48,25 +48,33 @@ function calcularProximaRepasion(intentos, exito) {
   return { proximaRepasion: fecha.toISOString(), intervaloDias: dias }
 }
 
+let firestoreOffline = false
+
 const saveToFirestore = async (id, data) => {
+  if (firestoreOffline) return
   const user = auth?.currentUser
   if (!isConfigured || !db || !user || !user.uid) return
   try {
     const docRef = doc(db, `users/${user.uid}/progress`, id)
     await setDoc(docRef, data, { merge: true })
   } catch (error) {
-    console.warn('Notice al guardar progreso en Firestore:', error?.message)
+    if (error?.code === 'not-found' || error?.message?.includes('not found')) {
+      firestoreOffline = true
+    }
   }
 }
 
 const saveProfileToFirestore = async (profileData) => {
+  if (firestoreOffline) return
   const user = auth?.currentUser
   if (!isConfigured || !db || !user || !user.uid) return
   try {
     const docRef = doc(db, `users/${user.uid}`)
     await setDoc(docRef, profileData, { merge: true })
   } catch (error) {
-    console.warn('Notice al guardar perfil en Firestore:', error?.message)
+    if (error?.code === 'not-found' || error?.message?.includes('not found')) {
+      firestoreOffline = true
+    }
   }
 }
 

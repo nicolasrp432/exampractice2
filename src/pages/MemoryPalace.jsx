@@ -6,56 +6,7 @@ import clsx from 'clsx';
 import { allExercises } from '@/data/index';
 import { useProgressStore } from '@/store/progressStore';
 import { getToolById } from '@/utils/tools';
-
-// Bloque de comprensión para el reverso de la flashcard: en vez de solo la
-// historia mnemónica, reta con el "porqué" (decisión clave) y las herramientas.
-function BackFaceExtras({ exercise }) {
-  const [revealed, setRevealed] = useState(false);
-  const decision = exercise.desglose?.decisionesClave?.[0];
-  const herramientas = exercise.herramientas ?? [];
-
-  if (!decision && herramientas.length === 0) return null;
-
-  return (
-    <div className="shrink-0 mt-4 pt-4 border-t border-purple-200 space-y-3">
-      {herramientas.length > 0 && (
-        <div className="flex flex-wrap gap-1.5 justify-center">
-          {herramientas.map((id) => {
-            const t = getToolById(id);
-            if (!t) return null;
-            return (
-              <span
-                key={id}
-                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-sky-50 text-sky-700 border border-sky-200 text-xs font-medium"
-              >
-                {t.emoji} {t.label}
-              </span>
-            );
-          })}
-        </div>
-      )}
-
-      {decision && (
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            setRevealed((v) => !v);
-          }}
-          className="w-full text-left bg-white border border-amber-200 rounded-xl px-3 py-2 hover:bg-amber-50/50 transition-colors"
-        >
-          <p className="text-xs font-semibold text-amber-700 flex items-center gap-1">
-            🤔 {decision.pregunta}
-          </p>
-          {revealed ? (
-            <p className="text-sm text-zinc-700 mt-1">{decision.respuesta}</p>
-          ) : (
-            <p className="text-xs text-zinc-400 mt-1">Toca para ver el porqué</p>
-          )}
-        </button>
-      )}
-    </div>
-  );
-}
+import AnkiFlashcardStudio from '@/components/flashcards/AnkiFlashcardStudio';
 
 const ROOMS = [
   { id: 'cocina', name: 'Cocina', icon: '🍳', level: 1, color: 'bg-purple-50 border-purple-200 text-purple-700', active: 'bg-purple-100' },
@@ -157,217 +108,6 @@ function PalaceView({ ejercicios }) {
           </motion.button>
         );
       })}
-    </div>
-  );
-}
-
-function FlashcardsView({ ejercicios }) {
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [isFlipped, setIsFlipped] = useState(false);
-  const [sessionStats, setSessionStats] = useState({ correct: 0, wrong: 0 });
-  const [deck, setDeck] = useState([]);
-
-  const flashcardExercises = useMemo(() => {
-    return [...allExercises].sort(() => Math.random() - 0.5);
-  }, []);
-
-  useEffect(() => {
-    const initialDeck = flashcardExercises.map(ex => ({
-      id: ex.id,
-      dueAt: 0,
-      intervalDays: ejercicios[ex.id]?.intervaloDias || 1,
-      exercise: ex,
-    }));
-    setDeck(initialDeck);
-    setCurrentIndex(0);
-    setIsFlipped(false);
-  }, [flashcardExercises, ejercicios]);
-
-  const currentCard = deck[currentIndex];
-
-  const scheduleCard = useCallback((correct) => {
-    setDeck(prev => {
-      if (prev.length === 0) return prev;
-      const next = [...prev];
-      const now = Date.now();
-      const card = next[currentIndex];
-      const nextInterval = correct
-        ? Math.min((card.intervalDays || 1) * 2, 30)
-        : 1;
-      card.intervalDays = nextInterval;
-      card.dueAt = now + nextInterval * 24 * 60 * 60 * 1000;
-      if (!correct) {
-        next.splice(currentIndex, 1);
-        const insertAt = Math.min(currentIndex + 1, next.length);
-        next.splice(insertAt, 0, card);
-        return next;
-      }
-      return next;
-    });
-  }, [currentIndex]);
-
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (e.key === 'ArrowLeft') {
-        e.preventDefault();
-        setIsFlipped(false);
-        setCurrentIndex(i => (i - 1 + Math.max(deck.length, 1)) % Math.max(deck.length, 1));
-      }
-      if (e.key === 'ArrowRight') {
-        e.preventDefault();
-        setIsFlipped(false);
-        setCurrentIndex(i => (i + 1) % Math.max(deck.length, 1));
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [deck.length]);
-
-  if (deck.length === 0 || !currentCard) return null;
-
-  const exercise = currentCard.exercise;
-  const progresoSesion = Math.min(sessionStats.correct + sessionStats.wrong, 30);
-
-  const handleFlip = () => setIsFlipped(v => !v);
-  
-  const nextCard = (correct) => {
-    setSessionStats(s => ({ ...s, [correct ? 'correct' : 'wrong']: s[correct ? 'correct' : 'wrong'] + 1 }));
-    scheduleCard(correct);
-    setIsFlipped(false);
-    setTimeout(() => {
-      setCurrentIndex((i) => (i + 1) % deck.length);
-    }, 150);
-  };
-  
-  const prevCard = (e) => {
-    e.stopPropagation();
-    setIsFlipped(false);
-    setTimeout(() => {
-      setCurrentIndex((i) => (i - 1 + deck.length) % deck.length);
-    }, 150);
-  };
-
-  return (
-    <div className="flex flex-col items-center justify-center max-w-2xl mx-auto min-h-[500px]">
-      
-      <div className="w-full flex items-center justify-between mb-8 px-4">
-        <span className="text-sm font-semibold text-zinc-500 flex items-center gap-2"><Gauge size={15} /> Sesión actual</span>
-        <div className="flex items-center gap-4 text-sm font-bold">
-          <span className="text-red-500 flex items-center gap-1"><X size={16}/> {sessionStats.wrong}</span>
-          <span className="text-green-500 flex items-center gap-1"><Check size={16}/> {sessionStats.correct}</span>
-        </div>
-        <span className="text-sm font-semibold text-zinc-500">{progresoSesion}/30</span>
-      </div>
-
-      <div className="w-full aspect-[3/4] sm:aspect-video relative" style={{ perspective: '1000px' }}>
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={exercise.id}
-            initial={{ opacity: 0, x: 50 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -50 }}
-            className="absolute inset-0 w-full h-full cursor-pointer"
-            onClick={handleFlip}
-            style={{ transformStyle: 'preserve-3d' }}
-          >
-            <motion.div
-              className="absolute inset-0 w-full h-full"
-              animate={{ rotateY: isFlipped ? 180 : 0 }}
-              transition={{ duration: 0.6, type: 'spring', stiffness: 260, damping: 20 }}
-              style={{ transformStyle: 'preserve-3d' }}
-            >
-              {/* ANVERSO */}
-              <div 
-                className="absolute inset-0 w-full h-full bg-white border-2 border-zinc-200 rounded-3xl shadow-lg flex flex-col items-center justify-center p-8 text-center overflow-hidden"
-                style={{ backfaceVisibility: 'hidden' }}
-              >
-                {localStorage.getItem(`42prep-img-${exercise.id}`) ? (
-                  <div className="w-32 h-32 rounded-2xl overflow-hidden mb-4 shadow-md border border-zinc-200">
-                    <img src={localStorage.getItem(`42prep-img-${exercise.id}`)} alt={exercise.nombre} className="w-full h-full object-cover" />
-                  </div>
-                ) : (
-                  <span className="text-8xl mb-6 drop-shadow-md">{exercise.palacio?.emoji || '❓'}</span>
-                )}
-                <h2 className="text-3xl font-bold text-zinc-800 font-mono">{exercise.nombre}</h2>
-                <div className="mt-6 px-4 py-2 bg-zinc-100 text-zinc-500 rounded-full font-medium text-sm animate-pulse">
-                  Click para revelar
-                </div>
-              </div>
-
-              {/* REVERSO */}
-              <div 
-                className="absolute inset-0 w-full h-full bg-purple-50 border-2 border-purple-200 rounded-3xl shadow-lg flex flex-col p-8 overflow-y-auto"
-                style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
-              >
-                <div className="text-center mb-6 border-b border-purple-200 pb-4 shrink-0">
-                  <h3 className="text-2xl font-bold text-purple-900">{exercise.palacio?.personaje}</h3>
-                  <span className="font-mono text-sm text-purple-600">{exercise.nombre}</span>
-                </div>
-                
-                <p className="text-base text-zinc-700 leading-relaxed mb-6 italic flex-1">
-                  "{exercise.palacio?.historia}"
-                </p>
-
-                <div className="shrink-0">
-                  <h4 className="text-xs font-bold text-purple-400 uppercase tracking-wide mb-3">Anclas Clave</h4>
-                  <div className="flex flex-wrap gap-2 mb-6">
-                    {exercise.palacio?.anclas?.map((a, i) => (
-                      <span key={i} className="bg-white border border-purple-100 text-purple-800 px-3 py-1.5 rounded-lg text-sm font-mono shadow-sm">
-                        {a}
-                      </span>
-                    ))}
-                  </div>
-
-                  {exercise.formulaClave && (
-                    <div className="mt-auto">
-                      <h4 className="text-xs font-bold text-purple-400 uppercase tracking-wide mb-3">Fórmula</h4>
-                      <div className="bg-white p-4 rounded-xl border border-purple-100 font-mono text-sm text-zinc-800 shadow-sm text-center">
-                        {exercise.formulaClave.minusculas || exercise.formulaClave.formula || exercise.formulaClave.descripcion}
-                      </div>
-                    </div>
-                  )}
-
-                  <BackFaceExtras exercise={exercise} />
-                </div>
-              </div>
-            </motion.div>
-          </motion.div>
-        </AnimatePresence>
-      </div>
-
-      <div className="flex items-center gap-4 mt-8 w-full">
-        <button
-          onClick={prevCard}
-          className="p-4 bg-white border border-zinc-200 text-zinc-600 hover:bg-zinc-50 rounded-xl transition-colors shadow-sm"
-          title="Anterior"
-        >
-          <ArrowLeft size={24} />
-        </button>
-        <button
-          onClick={(e) => { e.stopPropagation(); nextCard(false); }}
-          className="flex-1 py-4 bg-white border border-red-200 text-red-600 hover:bg-red-50 rounded-xl font-bold text-lg transition-colors shadow-sm"
-        >
-          No lo sé
-        </button>
-        <button
-          onClick={(e) => { e.stopPropagation(); nextCard(true); }}
-          className="flex-1 py-4 bg-green-500 border border-transparent text-white hover:bg-green-600 rounded-xl font-bold text-lg transition-colors shadow-md"
-        >
-          Lo tengo
-        </button>
-        <button
-          onClick={() => {
-            setDeck(prev => [...prev].sort(() => Math.random() - 0.5));
-            setCurrentIndex(0);
-            setIsFlipped(false);
-          }}
-          className="p-4 bg-white border border-zinc-200 text-zinc-600 hover:bg-zinc-50 rounded-xl transition-colors shadow-sm"
-          title="Mezclar mazo"
-        >
-          <RotateCcw size={24} />
-        </button>
-      </div>
     </div>
   );
 }
@@ -499,7 +239,7 @@ export default function MemoryPalace() {
 
   const tabs = [
     { id: 'palace', label: 'Palacio', icon: <Map size={16} /> },
-    { id: 'flashcards', label: 'Flash Cards', icon: <BrainCircuit size={16} /> },
+    { id: 'flashcards', label: 'Flashcards Anki', icon: <BrainCircuit size={16} /> },
     { id: 'characters', label: 'Personajes', icon: <Users size={16} /> },
   ];
 
@@ -508,8 +248,8 @@ export default function MemoryPalace() {
       {/* HEADER */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-zinc-900 mb-2">Palacio de la Memoria</h1>
-          <p className="text-zinc-500">Repasa tus historias, personajes y anclas para dominar el examen.</p>
+          <h1 className="text-3xl font-bold text-zinc-900 mb-2">Palacio & Flashcards</h1>
+          <p className="text-zinc-500">Repasa conceptos de C, lógica de examen y mnemotecnia con repetición espaciada.</p>
         </div>
 
         {/* TOGGLE */}
@@ -549,7 +289,7 @@ export default function MemoryPalace() {
           )}
           {mode === 'flashcards' && (
             <motion.div key="flashcards" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.2 }}>
-              <FlashcardsView ejercicios={ejercicios} />
+              <AnkiFlashcardStudio />
             </motion.div>
           )}
           {mode === 'characters' && (

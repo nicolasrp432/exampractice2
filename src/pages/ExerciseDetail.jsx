@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   ChevronLeft, ChevronRight, Play, ClipboardList,
   Gamepad2, Microscope, Shuffle, Trophy, Trash2, Copy, Check, Brain,
-  Swords, Sparkles, Code2,
+  Swords, Sparkles, Code2, Zap,
 } from 'lucide-react'
 import clsx from 'clsx'
 import { getExercise, getPrevExercise, getNextExercise } from '@/data/index'
@@ -24,11 +24,13 @@ import DojoLadder from '@/components/dojo/DojoLadder'
 import AlgorithmThinkingGuide from '@/components/exercise/AlgorithmThinkingGuide'
 import Exercise3DDojo from '@/components/three/Exercise3DDojo'
 import MainTestingLab from '@/components/practice/MainTestingLab'
+import AnkiFlashcardStudio from '@/components/flashcards/AnkiFlashcardStudio'
 
 // ─── Tabs config ──────────────────────────────────────────────────────────────
 const TABS = [
   { id: 'subject',   icon: ClipboardList, label: 'Subject'                },
   { id: 'logica',    icon: Brain,         label: 'Lógica & 3D'            },
+  { id: 'flashcards',icon: Zap,           label: 'Flashcards C'           },
   { id: 'mainlab',   icon: Code2,         label: 'Main de Pruebas'        },
   { id: 'historia',  icon: Sparkles,      label: 'Mnemotecnia & Palacio'  },
   { id: 'dojo',      icon: Swords,        label: 'Dojo'                   },
@@ -469,10 +471,11 @@ export default function ExerciseDetail() {
   const statusCfg = STATUS_CONFIG[estado]
 
   const tabContent = {
-    subject:   <TabSubject exercise={exercise} />,
-    logica:    <TabLogicaVisual exercise={exercise} />,
-    mainlab:   <MainTestingLab exercise={exercise} />,
-    historia:  <TabHistoria exercise={exercise} />,
+    subject:    <TabSubject exercise={exercise} />,
+    logica:     <TabLogicaVisual exercise={exercise} />,
+    flashcards: <AnkiFlashcardStudio initialExerciseId={exercise.id} />,
+    mainlab:    <MainTestingLab exercise={exercise} />,
+    historia:   <TabHistoria exercise={exercise} />,
     dojo:      <DojoLadder exercise={exercise} />,
     simulador: <TabSimulador exercise={exercise} />,
     gdb:       <TabGDB exercise={exercise} />,

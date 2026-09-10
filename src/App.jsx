@@ -10,9 +10,11 @@ import Tools from '@/pages/Tools'
 import Fundamentos from '@/pages/Fundamentos'
 import ProgressPage from '@/pages/ProgressPage'
 import MemoryPalace from '@/pages/MemoryPalace'
+import FlashcardsPage from '@/pages/FlashcardsPage'
 import { auth, isConfigured } from '@/utils/firebase'
 import { onAuthStateChanged } from 'firebase/auth'
 import { useProgressStore } from '@/store/progressStore'
+import { useFlashcardStore } from '@/store/flashcardStore'
 
 export default function App() {
   const setUser = useProgressStore(s => s.setUser)
@@ -28,6 +30,7 @@ export default function App() {
           isAnonymous: user.isAnonymous
         })
         syncWithCloud()
+        useFlashcardStore.getState().syncWithCloud()
       } else {
         setUser(null)
       }
@@ -44,6 +47,7 @@ export default function App() {
         <Route path="/fundamentos" element={<Fundamentos />} />
         <Route path="/progreso" element={<ProgressPage />} />
         <Route path="/palacio" element={<MemoryPalace />} />
+        <Route path="/flashcards" element={<FlashcardsPage />} />
       </Route>
 
       {/* Examen y práctica sin sidebar (modo concentración) */}

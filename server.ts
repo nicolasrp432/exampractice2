@@ -20,7 +20,14 @@ function getAiClient(customKey?: string) {
   if (!rawKey) return null;
   const apiKey = rawKey.replace(/^["']|["']$/g, '').trim();
   if (!apiKey) return null;
-  return new GoogleGenAI({ apiKey });
+  return new GoogleGenAI({
+    apiKey,
+    httpOptions: {
+      headers: {
+        'User-Agent': 'aistudio-build',
+      },
+    },
+  });
 }
 
 function getSystemInstruction(exerciseContext?: any) {
@@ -125,6 +132,110 @@ async function startServer() {
     } catch (err: any) {
       console.error('Error in /api/gemini/chat:', err);
       res.status(500).json({ error: err.message || 'Error interno del tutor' });
+    }
+  });
+
+  // ─── API: Generador de Flashcards de Sintaxis y Resolución C (Gemini) ───
+  app.post('/api/gemini/generate-flashcards', async (req, res) => {
+    try {
+      const {
+        topic = 'Algoritmos y Sintaxis C de Examen 42',
+        exerciseId,
+        level = 1,
+        category = 'general', // 'sintaxis' | 'resolucion' | 'memoria_punteros' | 'casos_limite' | 'general'
+        count = 3,
+        customKey,
+      } = req.body;
+
+      const ai = getAiClient(customKey);
+
+      const flashcardSystemInstruction = `Eres un preparador experto y examinador de C para el Examen 02 (Rank 02) de la Escuela 42.
+Tu objetivo es generar tarjetas de estudio técnicas (Flashcards) ultra enfocadas en:
+1. SINTAXIS Y CÓDIGO REAL EN C: sintaxis exacta de operadores, punteros (* y **), casteos obligatorios (ej: (unsigned char)), llamadas a write y malloc.
+2. LÓGICA DE RESOLUCIÓN PASO A PASO: cómo plantear el algoritmo mentalmente para resolver el ejercicio en el examen.
+3. GESTIÓN DE MEMORIA Y CONDICIONES LÍMITE: cómo evitar Segfaults, terminadores '\\0', puntero NULL final en arrays, verificación estricta de argc.
+4. TRAMPAS TÍPICAS DE LA MOULINETTE: fallos sutiles que causan KO o 0 inmediato.
+
+PROHIBIDO:
+- NO inventes historias mnemónicas ni personajes mágicos o palacios de la memoria (nada de duendes, cocinas, o analogías mágicas).
+- Céntrate 100% en la sintaxis, el razonamiento algorítmico y el código C de examen.
+- Devuelve EXACTAMENTE un array JSON válido con la siguiente estructura por tarjeta:
+[
+  {
+    "titulo": "Título técnico y conciso",
+    "categoria": "sintaxis" | "resolucion" | "memoria_punteros" | "casos_limite",
+    "nivel": 1 | 2 | 3 | 4,
+    "pregunta": "¿Pregunta clara sobre cómo resolver el ejercicio o sobre sintaxis clave?",
+    "pista": "Pista conceptual corta para estimular el recuerdo",
+    "codigoReto": "Snippet C con ??? o reto de análisis de código",
+    "respuesta": "Explicación directa y estructurada de cómo resolverlo paso a paso",
+    "codigoSolucion": "Fragmento de código C limpio, idiomático y correcto",
+    "porQue": "Por qué es necesario técnicamente en C y para pasar Moulinette",
+    "trampaMoulinette": "Trampa crítica que causa 0 o Segfault en el examen"
+  }
+]`;
+
+      if (ai) {
+        try {
+          const prompt = `Genera ${count} flashcards de estudio técnico para el Examen 02 de la Escuela 42.
+Tema o ejercicio solicitado: "${topic}"
+${exerciseId ? `ID de ejercicio: "${exerciseId}"` : ''}
+Nivel objetivo: Nivel ${level}
+Enfoque preferente: ${category === 'general' ? 'Variado (sintaxis, resolución, punteros y casos límite)' : category}
+
+Recuerda: nada de metáforas de palacio de la memoria. Queremos preguntas sobre cómo escribir el código, cómo plantear el algoritmo, manejo de punteros/memoria y trampas de Moulinette.`;
+
+          const response = await ai.models.generateContent({
+            model: 'gemini-3.8-flash',
+            contents: prompt,
+            config: {
+              systemInstruction: flashcardSystemInstruction,
+              responseMimeType: 'application/json',
+              temperature: 0.4,
+            },
+          });
+
+          const replyText = response.text;
+          if (replyText) {
+            let parsed = null;
+            try {
+              parsed = JSON.parse(replyText);
+            } catch (pErr) {
+              const match = replyText.match(/\[[\s\S]*\]/);
+              if (match) parsed = JSON.parse(match[0]);
+            }
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              const enriched = parsed.map((item, idx) => ({
+                id: `ia-${Date.now()}-${idx}-${Math.random().toString(36).slice(2, 6)}`,
+                exerciseId: exerciseId || (item.exerciseId || 'general'),
+                nivel: item.nivel || level || 2,
+                categoria: ['sintaxis', 'resolucion', 'memoria_punteros', 'casos_limite'].includes(item.categoria)
+                  ? item.categoria
+                  : 'resolucion',
+                titulo: item.titulo || `Técnica C: ${topic}`,
+                pregunta: item.pregunta || '¿Cómo resolver este ejercicio en C?',
+                pista: item.pista || '',
+                codigoReto: item.codigoReto || '',
+                respuesta: item.respuesta || '',
+                codigoSolucion: item.codigoSolucion || '',
+                porQue: item.porQue || '',
+                trampaMoulinette: item.trampaMoulinette || '',
+                origen: 'ia',
+              }));
+              return res.json({ flashcards: enriched, source: 'gemini' });
+            }
+          }
+        } catch (apiErr: any) {
+          console.warn('Gemini generate-flashcards API error, using fallback:', apiErr?.message);
+        }
+      }
+
+      // Procedural Fallback si no hay API key o falló la llamada
+      const fallbackCards = generateFallbackFlashcards(topic, exerciseId, level, category, count);
+      return res.json({ flashcards: fallbackCards, source: 'fallback' });
+    } catch (err: any) {
+      console.error('Error in /api/gemini/generate-flashcards:', err);
+      res.status(500).json({ error: err.message || 'Error al generar flashcards' });
     }
   });
 
@@ -870,6 +981,75 @@ Aquí estamos para asegurar tu **100% en el Rank 02**. Para **${name}**:
 - **Herramientas permitidas**: \`${allowed}\`.
 
 ❓ ¿Qué parte concreta de la lógica estás planteando o qué comportamiento inesperado te está dando? Explícamelo en una frase y lo destripamos.`;
+}
+
+function generateFallbackFlashcards(topic: string, exerciseId?: string, level: number = 2, category: string = 'general', count: number = 3) {
+  const tLower = (topic + ' ' + (exerciseId || '')).toLowerCase();
+
+  const library: any[] = [
+    {
+      id: `fallback-${Date.now()}-1`,
+      exerciseId: exerciseId || 'c_pointers',
+      nivel: level || 2,
+      categoria: 'memoria_punteros',
+      titulo: `${topic}: Aritmética de punteros y delimitador '\\0'`,
+      pregunta: `¿Cómo avanzar un puntero char *ptr hasta el final del string sin calcular la longitud previamente y evitando desbordamiento?`,
+      pista: 'Usa la evaluación booleana de *ptr en la condición del bucle while.',
+      codigoReto: `char *ptr = str;\nwhile (???)\n    ptr++;\n// ptr apunta ahora al byte '\\0'`,
+      respuesta: `En C, el bucle \`while (*ptr) ptr++;\` evalúa el valor contenido en la dirección. Cuando llega al byte nulo '\\0' (valor numérico 0), la condición se vuelve falsa y el bucle termina inmediatamente con ptr apuntando exactamente a la terminación.`,
+      codigoSolucion: `char *end = str;\n\nwhile (*end)\n    end++;\n// Ahora end apunta a '\\0', y (end - str) es exactamente la longitud`,
+      porQue: `Evita tener que llamar a strlen o iterar dos veces innecesariamente. La resta de punteros (end - str) devuelve la distancia en elementos en tiempo O(1).`,
+      trampaMoulinette: `Escribir \`while (ptr++)\` en lugar de \`while (*ptr)\`. Sin el asterisco desreferenciador, compruebas si la dirección de memoria no es nula, iterando hasta el fin del espacio de direcciones y provocando Segmentation Fault.`,
+      origen: 'ia'
+    },
+    {
+      id: `fallback-${Date.now()}-2`,
+      exerciseId: exerciseId || 'c_syntax',
+      nivel: level || 2,
+      categoria: 'sintaxis',
+      titulo: `${topic}: Estructura de comprobación de argc en main`,
+      pregunta: `¿Cuál es el patrón canónico para un programa de examen que requiere N argumentos y debe imprimir solo '\\n' si no se cumplen?`,
+      pista: 'Recuerda que argv[0] es el nombre del ejecutable. Por tanto argc para 1 argumento es 2.',
+      codigoReto: `int main(int argc, char **argv) {\n    if (argc == ???) {\n        // lógica principal\n    }\n    // ¿Dónde debe ir el write de '\\n'?\n}`,
+      respuesta: `Se evalúa la condición estricta \`if (argc == N + 1)\`. Toda la lógica de procesamiento se ejecuta dentro de ese bloque. Justo antes del \`return (0)\`, se coloca SIEMPRE fuera del if la llamada \`write(1, "\\n", 1);\`.`,
+      codigoSolucion: `int main(int argc, char **argv)\n{\n    if (argc == 2)\n    {\n        // resolver para argv[1]\n    }\n    write(1, "\\n", 1);\n    return (0);\n}`,
+      porQue: `Moulinette prueba los programas con 0 argumentos, 1 argumento y múltiples argumentos. Si metes el '\\n' dentro del if, con 0 argumentos no imprimirá nada y Moulinette marcará KO instantáneo.`,
+      trampaMoulinette: `Poner write(1, "\\n", 1) dentro del if o devolver 1 en lugar de 0. Salvo que el subject diga lo contrario, main debe retornar 0.`,
+      origen: 'ia'
+    },
+    {
+      id: `fallback-${Date.now()}-3`,
+      exerciseId: exerciseId || 'c_algo',
+      nivel: level || 2,
+      categoria: 'resolucion',
+      titulo: `${topic}: Detección de caracteres alfanuméricos y banderas`,
+      pregunta: `¿Cómo implementar un filtro de palabras sin usar isspace() ni ctype.h en los ejercicios de manipulación de texto de 42?`,
+      pista: 'Usa una función auxiliar o expresión con los caracteres exactos permitidos: espacio, tabulación y salto de línea.',
+      codigoReto: `// ¿Cómo saltar todos los espacios y tabs seguidos?\nwhile (???)\n    i++;`,
+      respuesta: `En la Escuela 42 los caracteres separadores estándar son espacio (' ') y tabulación ('\\t') y en ocasiones salto de línea ('\\n'). Se filtran con: \`while (*str == ' ' || *str == '\\t' || *str == '\\n') str++;\`.`,
+      codigoSolucion: `int is_sep(char c)\n{\n    return (c == ' ' || c == '\\t' || c == '\\n');\n}\n\n// Uso:\nwhile (is_sep(*str))\n    str++;`,
+      porQue: `Crear una pequeña función auxiliar booleana \`is_sep(c)\` hace que el código sea modular, reduce la longitud de las líneas según la Norminette y previene olvidar el '\\t'.`,
+      trampaMoulinette: `Comprobar únicamente espacios con \`c == ' '\` y olvidar las tabulaciones \`\\t\`. Moulinette siempre incluye casos de prueba con tabs.`,
+      origen: 'ia'
+    },
+    {
+      id: `fallback-${Date.now()}-4`,
+      exerciseId: exerciseId || 'c_mem',
+      nivel: level || 3,
+      categoria: 'casos_limite',
+      titulo: `${topic}: Control de desbordamiento en enteros y conversión ASCII`,
+      pregunta: `Al convertir caracteres a enteros con la fórmula res = res * 10 + (*s - '0'), ¿qué ocurre si no se valida el rango o vienen signos negativos?`,
+      pista: 'Usa una variable int sign = 1; y actualízala a -1 si encuentras \'-\'.',
+      codigoReto: `int sign = 1;\nif (*s == '-' || *s == '+') {\n    // ¿Cómo actualizar sign?\n}`,
+      respuesta: `Se inicializa \`sign = 1\`. Si el primer carácter no blanco es '-', se asigna \`sign = -1\` y se avanza el puntero. Si es '+', simplemente se avanza. Luego el acumulador suma dígitos positivos y al final se retorna \`res * sign\`.`,
+      codigoSolucion: `int sign = 1;\nint res = 0;\n\nif (*s == '-' || *s == '+')\n{\n    if (*s == '-')\n        sign = -1;\n    s++;\n}\nwhile (*s >= '0' && *s <= '9')\n{\n    res = res * 10 + (*s - '0');\n    s++;\n}\nreturn (res * sign);`,
+      porQue: `Esta técnica garantiza que solo se procese un signo al inicio y que cualquier carácter no numérico subsiguiente detenga la conversión limpiamente como en la libc.`,
+      trampaMoulinette: `Permitir múltiples signos (ej: ++--12) cuando la especificación de examen exige el comportamiento estándar de atoi.`,
+      origen: 'ia'
+    }
+  ];
+
+  return library.slice(0, Math.max(1, Math.min(count, library.length)));
 }
 
 startServer().catch((err) => {
