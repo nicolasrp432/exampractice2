@@ -1,5 +1,5 @@
 // src/components/terminal/InteractiveTerminal.jsx
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import {
   Terminal as TerminalIcon,
   Play,
@@ -17,9 +17,11 @@ import {
   Send,
   CornerDownLeft,
   Sparkles,
-  Info
+  Info,
+  GripHorizontal,
 } from 'lucide-react'
 import clsx from 'clsx'
+import { executeTerminalClientFallback } from '@/utils/terminalFallback'
 
 export default function InteractiveTerminal({
   code,
@@ -29,7 +31,6 @@ export default function InteractiveTerminal({
   onClose,
 }) {
   const [activeTab, setActiveTab] = useState('terminal') // 'terminal' | 'compile' | 'asan' | 'gdb' | 'norm'
-  const [heightMode, setHeightMode] = useState('medium') // 'compact' (210px) | 'medium' (320px) | 'large' (460px)
   const [command, setCommand] = useState('')
   const [history, setHistory] = useState([])
   const [historyIndex, setHistoryIndex] = useState(-1)
@@ -49,8 +50,74 @@ export default function InteractiveTerminal({
   const [isExecuting, setIsExecuting] = useState(false)
   const [copiedIndex, setCopiedIndex] = useState(null)
 
+  // Altura ajustable y deslizante (resizable)
+  const [terminalHeight, setTerminalHeight] = useState(() => {
+    try {
+      const saved = localStorage.getItem('42prep-terminal-height')
+      const parsed = saved ? parseInt(saved, 10) : 320
+      return isNaN(parsed) || parsed < 150 ? 320 : parsed
+    } catch {
+      return 320
+    }
+  })
+  const [isDragging, setIsDragging] = useState(false)
+  const isResizingRef = useRef(false)
+  const startYRef = useRef(0)
+  const startHeightRef = useRef(320)
+
   const logsEndRef = useRef(null)
   const inputRef = useRef(null)
+
+  // Manejador para iniciar el deslizamiento (resize)
+  const startResizing = useCallback((e) => {
+    isResizingRef.current = true
+    setIsDragging(true)
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY
+    startYRef.current = clientY
+    startHeightRef.current = terminalHeight
+    document.body.style.userSelect = 'none'
+    document.body.style.cursor = 'row-resize'
+  }, [terminalHeight])
+
+  useEffect(() => {
+    const handleMouseMove = (e) => {
+      if (!isResizingRef.current) return
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY
+      // Arrastrar hacia arriba (menor clientY) aumenta la altura de la terminal
+      const deltaY = startYRef.current - clientY
+      const minH = 150
+      const maxH = Math.min(window.innerHeight * 0.85, 780)
+      const nextH = Math.max(minH, Math.min(maxH, startHeightRef.current + deltaY))
+      setTerminalHeight(nextH)
+    }
+
+    const handleMouseUp = () => {
+      if (isResizingRef.current) {
+        isResizingRef.current = false
+        setIsDragging(false)
+        document.body.style.userSelect = ''
+        document.body.style.cursor = ''
+        setTerminalHeight((curr) => {
+          try {
+            localStorage.setItem('42prep-terminal-height', String(Math.round(curr)))
+          } catch {}
+          return curr
+        })
+      }
+    }
+
+    window.addEventListener('mousemove', handleMouseMove)
+    window.addEventListener('mouseup', handleMouseUp)
+    window.addEventListener('touchmove', handleMouseMove, { passive: false })
+    window.addEventListener('touchend', handleMouseUp)
+
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove)
+      window.removeEventListener('mouseup', handleMouseUp)
+      window.removeEventListener('touchmove', handleMouseMove)
+      window.removeEventListener('touchend', handleMouseUp)
+    }
+  }, [])
 
   // Scroll al final al recibir nuevo log
   useEffect(() => {
@@ -70,7 +137,6 @@ export default function InteractiveTerminal({
 
   const parseArgsList = (raw) => {
     if (!raw.trim()) return []
-    // Parser simple que respeta comillas dobles
     const matches = raw.match(/"[^"]*"|\S+/g) || []
     return matches.map(m => m.replace(/^"|"$/g, ''))
   }
@@ -94,31 +160,67 @@ export default function InteractiveTerminal({
     const tipoEntrega = exercise?.tipoEntrega || 'programa'
 
     try {
-      const res = await fetch('/api/terminal/exec', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      let data = null
+      let usedFallback = false
+
+      try {
+        const res = await fetch('/api/terminal/exec', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action,
+            command: cmdToRun,
+            code,
+            exerciseId,
+            tipoEntrega,
+            filename: `${exerciseId}.c`,
+            args: argsList,
+            stdin: customStdin,
+          })
+        })
+
+        const contentType = res.headers.get('content-type') || ''
+        if (res.ok && contentType.includes('application/json')) {
+          data = await res.json()
+          if (data?.useClientExecution || data?.compilerUnavailable) {
+            usedFallback = true
+          }
+        } else {
+          // El servidor devolvió 404 (ej: Vercel) o página HTML. Pasamos al ejecutor seguro.
+          usedFallback = true
+        }
+      } catch (netErr) {
+        // Servidor no disponible o modo offline
+        usedFallback = true
+      }
+
+      // Si el backend nativo no está disponible, ejecutamos a través del motor seguro
+      if (usedFallback || !data) {
+        data = await executeTerminalClientFallback({
           action,
           command: cmdToRun,
           code,
-          exerciseId,
-          tipoEntrega,
+          exercise,
           filename: `${exerciseId}.c`,
           args: argsList,
           stdin: customStdin,
         })
-      })
+      }
 
-      const data = await res.json()
+      if (data?.clear) {
+        setCommandLogs([])
+        setCommand('')
+        return
+      }
 
       const newLog = {
         id: `log_${Date.now()}`,
         action,
-        command: data.command || cmdToRun,
-        stdout: data.stdout,
-        stderr: data.stderr,
-        exitCode: data.exitCode,
-        signal: data.signal,
+        command: data?.command || cmdToRun,
+        stdout: data?.stdout ?? '',
+        stderr: data?.stderr ?? '',
+        exitCode: data?.exitCode ?? 0,
+        signal: data?.signal ?? null,
         timestamp: new Date().toLocaleTimeString(),
       }
 
@@ -132,7 +234,7 @@ export default function InteractiveTerminal({
           action,
           command: cmdToRun,
           stdout: '',
-          stderr: `Error al conectar con la terminal: ${err.message}`,
+          stderr: `Error en la terminal: ${err.message}`,
           exitCode: 1,
           timestamp: new Date().toLocaleTimeString(),
         }
@@ -172,19 +274,29 @@ export default function InteractiveTerminal({
     setTimeout(() => setCopiedIndex(null), 1800)
   }
 
-  const heightClasses = {
-    compact: 'h-52',
-    medium: 'h-80',
-    large: 'h-[460px]',
-  }
-
   const exName = exercise?.id || 'solution'
 
   return (
-    <div className={clsx(
-      'flex flex-col bg-[#0d1117] border-t border-zinc-700 text-zinc-300 font-mono transition-all duration-150 z-20 shadow-2xl relative',
-      heightClasses[heightMode]
-    )}>
+    <div
+      style={{ height: `${terminalHeight}px` }}
+      className="flex flex-col bg-[#0d1117] text-zinc-300 font-mono z-20 shadow-2xl relative overflow-hidden shrink-0"
+    >
+      {/* ── Manija de Arrastre para Redimensionar (Deslizar hacia arriba o abajo) ── */}
+      <div
+        onMouseDown={startResizing}
+        onTouchStart={startResizing}
+        className={clsx(
+          "w-full h-2.5 cursor-row-resize flex items-center justify-center select-none transition-colors border-t border-zinc-700/80 group z-30 shrink-0",
+          isDragging ? "bg-emerald-500/30" : "bg-[#141820] hover:bg-emerald-500/20"
+        )}
+        title="Arrastra hacia arriba para agrandar o hacia abajo para reducir la terminal"
+      >
+        <div className={clsx(
+          "w-12 h-1 rounded-full transition-all flex items-center justify-center",
+          isDragging ? "bg-emerald-400 w-16 h-1.5" : "bg-zinc-600 group-hover:bg-zinc-400"
+        )} />
+      </div>
+
       {/* ── Barra Superior de Pestañas & Acciones de Ventana ── */}
       <div className="flex items-center justify-between px-3 py-1.5 bg-[#161b22] border-b border-zinc-800 shrink-0 select-none text-xs">
         <div className="flex items-center gap-1 overflow-x-auto">
@@ -293,14 +405,14 @@ export default function InteractiveTerminal({
 
           <button
             onClick={() => {
-              if (heightMode === 'compact') setHeightMode('medium')
-              else if (heightMode === 'medium') setHeightMode('large')
-              else setHeightMode('compact')
+              if (terminalHeight < 240) setTerminalHeight(340)
+              else if (terminalHeight < 460) setTerminalHeight(560)
+              else setTerminalHeight(200)
             }}
             className="p-1 hover:bg-zinc-800 rounded hover:text-zinc-200"
-            title="Cambiar tamaño del panel de terminal"
+            title="Ajustar tamaño predeterminado (o arrastra la barra superior para deslizar libremente)"
           >
-            {heightMode === 'large' ? <Minimize2 size={13} /> : <Maximize2 size={13} />}
+            {terminalHeight > 450 ? <Minimize2 size={13} /> : <Maximize2 size={13} />}
           </button>
 
           <button

@@ -132,17 +132,20 @@ export async function compileAndRun(code, args = [], exerciseIdOrOptions = null,
       clearTimeout(localTimeout)
 
       if (localRes.ok) {
-        const data = await localRes.json()
-        if (!data.compilerUnavailable) {
-          return {
-            compileError: data.compileError,
-            compileDiagnostics: parseCompilerDiagnostics(data.compileError, code),
-            stdout: data.stdout ?? '',
-            stderr: data.stderr ?? '',
-            exitCode: data.exitCode ?? 0,
-            signal: data.signal ?? null,
-            isTimeout: Boolean(data.isTimeout),
-            mode: 'local',
+        const contentType = localRes.headers.get('content-type') || ''
+        if (contentType.includes('application/json')) {
+          const data = await localRes.json()
+          if (!data.compilerUnavailable) {
+            return {
+              compileError: data.compileError,
+              compileDiagnostics: parseCompilerDiagnostics(data.compileError, code),
+              stdout: data.stdout ?? '',
+              stderr: data.stderr ?? '',
+              exitCode: data.exitCode ?? 0,
+              signal: data.signal ?? null,
+              isTimeout: Boolean(data.isTimeout),
+              mode: 'local',
+            }
           }
         }
       }
